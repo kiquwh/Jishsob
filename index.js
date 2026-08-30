@@ -296,20 +296,16 @@ function getHelpText(category) {
     case "punish": return "⚠️ **دستورات اخطار، سنجاق و مجازات:**\n\n▫️ `پین` | `انپین` | `اخطار` | `حذف اخطار`\n▫️ `تنظیم حداکثر اخطار [تعداد]`\n▫️ `تنظیم مجازات اخطار [بن/سکوت]`\n▫️ `سکوت` | `سکوت [دقیقه]` | `حذف سکوت` | `لیست سکوت`\n▫️ `بن` | `حذف بن` | `لیست بن` | `حذف پیام [تعداد]`";
     case "tags": return "🏷 **دستورات لقب، آمار و تگ:**\n\n▫️ `تنظیم لقب [اسم]` | `حذف لقب` | `لقب`\n▫️ `تگ کل` | `تگ مدیران` | `تگ کاربران` | `تگ [متن]`\n▫️ `امار کل` | `امار امروز` | `امار` | `پنل کاربر`";
     case "settings": return "⚙️ **تنظیمات مدیریت و دعوت:**\n\n▫️ `تنظیم قوانین [متن]` | `قوانین`\n▫️ `اد اجباری [تعداد]` | `اد اجباری غیرفعال`\n▫️ `تنظیم عضویت اجباری [يوزر_كانال]`\n▫️ `حذف عضویت اجباری [يوزر_كانال]` | `لیست عضویت اجباری`\n▫️ `تنظیم خوشامد [متن]`\n▫️ `تنظیم مدیر` | `حذف مدیر` | `لیست مدیرها`\n▫️ `ثبت اصل` | `حذف اصل` | `ثبت لینک اینجا` | `حذف لینک اینجا` | `لینک ها`";
-    case "fun": return "🎲 **دستورات سرگرمی و فیلترینگ:**\n\n▫️ `تاریخ` | `فال` | `تاس` | `سکه` | `شانس` | `فونت [متن]`\n▫️ `مخفی [متن]` (ارسال و حذف آنی پیام)\n▫️ `پیام [username@] [متن]` (پیام مخفی به کاربر)\n▫️ `تبدیل استیکر به عکس` (ریپلای روی استیکر)\n▫️ `[عدد 1] [عملگر +-*/] [عدد 2]` (ماشین حساب)\n▫️ `فیلتر [کلمه]` | `حذف فیلتر [کلمه]` | `لیست فیلتر`";
+    case "fun": return "🎲 **دستورات سرگرمی و فیلترینگ:**\n\n▫️ `تاریخ` | `فال` | `تاس` | `سکه` | `شانس` | `فونت [متن]`\n▫️ `مخفی [متن]` (ارسال و حذف آنی پیام)\n▫️ `پیام [username@] [متن]` (پیام مخفی به کاربر)\n▫️ `[عدد 1] [عملگر +-*/] [عدد 2]` (ماشین حساب)\n▫️ `فیلتر [کلمه]` | `حذف فیلتر [کلمه]` | `لیست فیلتر`";
     default: return "📚 **به پنل راهنمای مدیریت گروه خوش آمدید.**\n\nیک بخش را انتخاب کنید:";
   }
 }
 
-function getPrivateKeyboard(isOwnerOrAdmin = false) {
+function getPrivateKeyboard() {
   const cleanUsername = BOT_USERNAME.replace("@", "");
   const keyboard = [
-    [{ text: "➕ افزودن به گپ", url: `https://t.me/${cleanUsername}?startgroup=true` }],
-    [{ text: "🎧 پشتیبانی", callback_data: "req_support" }]
+    [{ text: "➕ افزودن به گروه", url: `https://t.me/${cleanUsername}?startgroup=true` }]
   ];
-  if (isOwnerOrAdmin) {
-    keyboard.unshift([{ text: "⚙️ پنل مدیریت ربات", callback_data: "admin_panel" }]);
-  }
   return { inline_keyboard: keyboard };
 }
 
@@ -331,7 +327,7 @@ function getAdminPanelKeyboard(isOff, userId) {
     [{ text: "➕ افزودن مدیر", callback_data: "add_admin_prompt" }, { text: "➖ حذف مدیر", callback_data: "rem_admin_prompt" }],
     [{ text: "👥 لیست کاربران", callback_data: "list_users" }, { text: "🚫 بن کاربر", callback_data: "ban_user_prompt" }],
     [{ text: "🟢 آن‌بن کاربر", callback_data: "unban_user_prompt" }, { text: "📢 پیام همگانی (پیوی)", callback_data: "broadcast_prompt" }],
-    [{ text: "📢 پیام همگانی به گروه‌ها", callback_data: "broadcast_groups_prompt" }]
+    [{ text: "📢 پیام همگانی (گروه‌ها)", callback_data: "broadcast_groups_prompt" }]
   ];
 
   if (userId === OWNER_ID) {
@@ -384,12 +380,6 @@ async function handleUpdate(update, env) {
       const botAdmins = Array.isArray(cfg.bot_admins) ? cfg.bot_admins.map(String) : [OWNER_ID];
       const isOwnerOrAdmin = userId === OWNER_ID || botAdmins.includes(userId);
 
-      if (data === "req_support") {
-        if (env && env.BOT_KV) await env.BOT_KV.put("await_action:" + userId, "await_support_msg");
-        await sendMessage(cb.message.chat.id, "✍️ لطفاً پیام یا سوال خود را برای ارسال به مالک ربات بفرستید:");
-        return await answerCallbackQuery(cb.id);
-      }
-
       if (data === "check_multi_sub") {
         const chatId = cb.message.chat.id;
         const g = await getGroupData(env, chatId);
@@ -431,19 +421,9 @@ async function handleUpdate(update, env) {
         return await answerCallbackQuery(cb.id, secretContent, true);
       }
 
-      if (data.startsWith("ans_pv_")) {
-        if (userId !== OWNER_ID) return await answerCallbackQuery(cb.id, "فقط مالک ربات می‌تواند پاسخ دهد.", true);
-        const targetUserId = data.replace("ans_pv_", "");
-        if (env && env.BOT_KV) {
-          await env.BOT_KV.put("await_action:" + userId, "await_support_reply:" + targetUserId);
-        }
-        await editMessageText(cb.message.chat.id, cb.message.message_id, cb.message.text + "\n\n✍️ **لطفاً پاسخ خود را به این کاربر بفرستید:**");
-        return await answerCallbackQuery(cb.id);
-      }
-
       if (data === "pv_main_menu") {
-        const msgText = "✨ **ربات فعال است.**\n\nآن را در گروه اضافه کرده و ادمین کنید.";
-        await editMessageText(cb.message.chat.id, cb.message.message_id, msgText, getPrivateKeyboard(isOwnerOrAdmin));
+        const startMsg = "خوش اومدید به ربات " + BOT_NAME;
+        await editMessageText(cb.message.chat.id, cb.message.message_id, startMsg, getPrivateKeyboard());
         return await answerCallbackQuery(cb.id);
       }
 
@@ -465,10 +445,10 @@ async function handleUpdate(update, env) {
           listMsg += (i + 1) + ". آیدی عددی: `" + u + "` | [لینک](tg://user?id=" + u + ") - " + (isBanned ? "🔴 بن" : "🟢 فعال") + "\n";
         });
 
-        listMsg += "\nبرای بن کردن یا آن‌بن کردن کاربر از دکمه‌های پنل اصلی یا دستورات استفاده کنید.";
         const ownerMarkup = {
           inline_keyboard: [
             [{ text: "🚫 بن کاربر", callback_data: "ban_user_prompt" }, { text: "🟢 آن‌بن کاربر", callback_data: "unban_user_prompt" }],
+            [{ text: "📢 پیام همگانی (گروه‌ها)", callback_data: "broadcast_groups_prompt" }],
             [{ text: "🔙 بازگشت به پنل مدیریت", callback_data: "admin_panel" }]
           ]
         };
@@ -486,9 +466,6 @@ async function handleUpdate(update, env) {
           const users = cfg.private_users || [];
           const activeMsg = "🟢 **ربات با موفقیت فعال شد!** 🎉\n" +
             "🤖 ربات هم‌اکنون آنلاین و آماده استفاده است.\n" +
-            "✨ تمامی قابلیت‌ها در دسترس هستند و می‌تونید مثل همیشه از ربات استفاده کنید.\n" +
-            "❤️ ممنون از صبر و همراهی شما\n" +
-            "🔥 منتظر آپدیت‌ها و قابلیت‌های جدید " + BOT_NAME + " باشید!\n" +
             "👑 مدیریت " + BOT_NAME;
 
           for (const u of users) {
@@ -553,9 +530,9 @@ async function handleUpdate(update, env) {
       }
 
       if (data === "broadcast_groups_prompt") {
-        if (!isOwnerOrAdmin) return await answerCallbackQuery(cb.id, "عدم دسترسی", true);
+        if (userId !== OWNER_ID && !isOwnerOrAdmin) return await answerCallbackQuery(cb.id, "عدم دسترسی", true);
         if (env && env.BOT_KV) await env.BOT_KV.put("await_action:" + userId, "await_broadcast_groups");
-        await editMessageText(cb.message.chat.id, cb.message.message_id, "📢 **متن یا پیام همگانی خود را برای تمامی گروه‌ها بفرستید:**");
+        await editMessageText(cb.message.chat.id, cb.message.message_id, "📢 **متن یا پیام همگانی خود را برای ارسال به تمامی گروه‌ها بفرستید:**");
         return await answerCallbackQuery(cb.id);
       }
 
@@ -642,21 +619,21 @@ async function handleUpdate(update, env) {
             }
           }
 
-          return await sendMessage(chatId, "🔴 **ربات خاموش شد و پیام اطلاعیه به تمام کاربران ارسال گردید.**", null, getPrivateKeyboard(isOwnerOrAdmin));
+          return await sendMessage(chatId, "🔴 **ربات خاموش شد و پیام اطلاعیه به تمام کاربران ارسال گردید.**", null, getAdminPanelKeyboard(true, userId));
         }
 
         if (currentAction === "await_add_admin") {
           if (!cfg.bot_admins) cfg.bot_admins = [OWNER_ID];
           if (!cfg.bot_admins.includes(text)) cfg.bot_admins.push(text);
           await saveGlobalConfig(env, cfg);
-          return await sendMessage(chatId, "✅ کاربر `" + text + "` با موفقیت به ادمین‌های ربات اضافه شد.", null, getPrivateKeyboard(isOwnerOrAdmin));
+          return await sendMessage(chatId, "✅ کاربر `" + text + "` با موفقیت به ادمین‌های ربات اضافه شد.", null, getAdminPanelKeyboard(cfg.is_off, userId));
         }
 
         if (currentAction === "await_rem_admin") {
-          if (text === OWNER_ID) return await sendMessage(chatId, "❌ امکان حذف مالک اصلی ربات وجود ندارد.", null, getPrivateKeyboard(isOwnerOrAdmin));
+          if (text === OWNER_ID) return await sendMessage(chatId, "❌ امکان حذف مالک اصلی ربات وجود ندارد.", null, getAdminPanelKeyboard(cfg.is_off, userId));
           cfg.bot_admins = (cfg.bot_admins || []).filter(a => String(a) !== text);
           await saveGlobalConfig(env, cfg);
-          return await sendMessage(chatId, "✅ کاربر `" + text + "` از لیست مدیران ربات حذف شد.", null, getPrivateKeyboard(isOwnerOrAdmin));
+          return await sendMessage(chatId, "✅ کاربر `" + text + "` از لیست مدیران ربات حذف شد.", null, getAdminPanelKeyboard(cfg.is_off, userId));
         }
 
         if (currentAction === "await_ban_user") {
@@ -664,14 +641,14 @@ async function handleUpdate(update, env) {
           if (!cfg.banned_pv.includes(text)) cfg.banned_pv.push(text);
           await saveGlobalConfig(env, cfg);
           await sendMessage(text, "🔴 **شما توسط مدیریت از ربات بن شدید.**").catch(() => {});
-          return await sendMessage(chatId, "✅ کاربر `" + text + "` بن شد.", null, getPrivateKeyboard(isOwnerOrAdmin));
+          return await sendMessage(chatId, "✅ کاربر `" + text + "` بن شد.", null, getAdminPanelKeyboard(cfg.is_off, userId));
         }
 
         if (currentAction === "await_unban_user") {
           cfg.banned_pv = (cfg.banned_pv || []).filter(u => String(u) !== text);
           await saveGlobalConfig(env, cfg);
           await sendMessage(text, "🟢 **حساب شما در ربات آن‌بن شد.**").catch(() => {});
-          return await sendMessage(chatId, "✅ کاربر `" + text + "` آن‌بن شد.", null, getPrivateKeyboard(isOwnerOrAdmin));
+          return await sendMessage(chatId, "✅ کاربر `" + text + "` آن‌بن شد.", null, getAdminPanelKeyboard(cfg.is_off, userId));
         }
 
         if (currentAction === "await_broadcast") {
@@ -682,46 +659,19 @@ async function handleUpdate(update, env) {
             const r = await sendMessage(u, broadMsg);
             if (r.ok) count++;
           }
-          return await sendMessage(chatId, "✅ پیام همگانی با موفقیت برای **" + count + "** کاربر ارسال شد.", null, getPrivateKeyboard(isOwnerOrAdmin));
+          return await sendMessage(chatId, "✅ پیام همگانی با موفقیت برای **" + count + "** کاربر ارسال شد.", null, getAdminPanelKeyboard(cfg.is_off, userId));
         }
 
         if (currentAction === "await_broadcast_groups") {
           const groupKeys = Object.keys(dbData.groups || {});
           let count = 0;
-          const broadMsg = `👑 **پیام همگانی مدیریت:**\n\n${text}\n\n— مدیریت ${BOT_NAME}`;
+          const broadMsg = `${text}`;
           for (const key of groupKeys) {
             const groupChatId = key.replace("group:", "");
             const r = await sendMessage(groupChatId, broadMsg);
             if (r.ok) count++;
           }
-          return await sendMessage(chatId, "✅ پیام همگانی با موفقیت برای **" + count + "** گروه ارسال شد.", null, getPrivateKeyboard(isOwnerOrAdmin));
-        }
-
-        if (currentAction.startsWith("await_support_reply:")) {
-          const targetUserId = currentAction.replace("await_support_reply:", "");
-          const replyMarkup = {
-            inline_keyboard: [[{ text: "✍️ جواب دادن", callback_data: "ans_pv_" + userId }]]
-          };
-          const sentRes = await sendMessage(targetUserId, `💬 **پاسخ پشتیبانی (مالک):**\n\n${text}`, null, replyMarkup);
-          if (sentRes.ok) {
-            return await sendMessage(chatId, `✅ پاسخ شما با موفقیت برای کاربر \`${targetUserId}\` ارسال شد.`, null, getPrivateKeyboard(isOwnerOrAdmin));
-          } else {
-            return await sendMessage(chatId, `❌ خطا در ارسال پاسخ به کاربر.`, null, getPrivateKeyboard(isOwnerOrAdmin));
-          }
-        }
-      }
-
-      if (currentAction && currentAction === "await_support_msg") {
-        if (env && env.BOT_KV) await env.BOT_KV.delete("await_action:" + userId);
-        const replyMarkup = {
-          inline_keyboard: [[{ text: "✍️ جواب دادن", callback_data: "ans_pv_" + userId }]]
-        };
-        const supportForwardText = `📩 **پیام جدید از کاربر:**\n▫️ آیدی عددی: \`${userId}\`\n▫️ لینک پروفایل: [کاربر](tg://user?id=${userId})\n\n**متن پیام:**\n${text}`;
-        const ownerRes = await sendMessage(OWNER_ID, supportForwardText, null, replyMarkup);
-        if (ownerRes.ok) {
-          return await sendMessage(chatId, "✅ پیام شما با موفقیت برای مالک ربات ارسال شد. به زودی پاسخ داده خواهد شد.", null, getPrivateKeyboard(isOwnerOrAdmin));
-        } else {
-          return await sendMessage(chatId, "❌ خطا در ارسال پیام به پشتیبانی.", null, getPrivateKeyboard(isOwnerOrAdmin));
+          return await sendMessage(chatId, "✅ پیام همگانی با موفقیت برای **" + count + "** گروه ارسال شد.", null, getAdminPanelKeyboard(cfg.is_off, userId));
         }
       }
 
@@ -729,22 +679,8 @@ async function handleUpdate(update, env) {
         if (userId !== OWNER_ID) {
           return await sendMessage(chatId, "❌ این دستور فقط مخصوص مالک ربات است.", msg.message_id);
         }
-        const pUsers = cfg.private_users || [];
-        const bUsers = cfg.banned_pv || [];
-        let listMsg = "👑 **مدیریت اختصاصی مالک (" + BOT_NAME + "):**\n\nکل کاربران: " + pUsers.length + "\nبن‌شده‌ها: " + bUsers.length + "\n\n";
-        
-        pUsers.slice(0, 20).forEach((u, i) => {
-          const isBanned = bUsers.includes(String(u));
-          listMsg += (i + 1) + ". آیدی عددی: `" + u + "` | آیدی: [لینک](tg://user?id=" + u + ") - " + (isBanned ? "🔴 بن" : "🟢 فعال") + "\n";
-        });
-
-        const ownerPanelMarkup = {
-          inline_keyboard: [
-            [{ text: "🚫 بن کاربر", callback_data: "ban_user_prompt" }, { text: "🟢 آن‌بن کاربر", callback_data: "unban_user_prompt" }],
-            [{ text: "⚙️ پنل اصلی ادمین", callback_data: "admin_panel" }]
-          ]
-        };
-        return await sendMessage(chatId, listMsg, msg.message_id, ownerPanelMarkup);
+        const panelText = "⚙️ **پنل مدیریت ربات " + BOT_NAME + "**\n\nوضعیت فعلی ربات: " + (cfg.is_off ? "🔴 خاموش" : "🟢 روشن");
+        return await sendMessage(chatId, panelText, msg.message_id, getAdminPanelKeyboard(cfg.is_off, userId));
       }
 
       if (text.startsWith("/start")) {
@@ -755,14 +691,8 @@ async function handleUpdate(update, env) {
           }
         }
 
-        const startMsg = "سلام 👋🏻 به " + BOT_NAME + " خوش اومدی 🖤\n" +
-        "🤖 من یک ربات مدیریت گروه قدرتمند هستم و می‌تونم به مدیریت بهتر و امن‌تر گروهت کمک کنم.\n" +
-        "📌 برای استفاده از امکانات ربات، منو به گروهت اضافه کن و دسترسی‌های لازم رو بده.\n" +
-        "💬 برای ارتباط با پشتیبانی یا دریافت راهنمایی، از دکمه پشتیبانی استفاده کن.\n" +
-        "➕ برای اضافه کردن ربات به گروه، روی افزودن به گپ بزن.\n" +
-        "🔗 آیدی ربات: " + BOT_USERNAME;
-        
-        return await sendMessage(chatId, startMsg, msg.message_id, getPrivateKeyboard(isOwnerOrAdmin));
+        const startMsg = "خوش اومدید به ربات " + BOT_NAME;
+        return await sendMessage(chatId, startMsg, msg.message_id, getPrivateKeyboard());
       }
 
       return;
@@ -1025,30 +955,6 @@ async function handleUpdate(update, env) {
       });
 
       return await sendMessage(chatId, tagText, msg.message_id);
-    }
-
-    if (userIsAdmin && text === "تبدیل استیکر به عکس" && msg.reply_to_message && msg.reply_to_message.sticker) {
-      const sticker = msg.reply_to_message.sticker;
-      const fileId = sticker.file_id;
-      
-      try {
-        const fileRes = await tgCall("getFile", { file_id: fileId });
-        if (fileRes.ok && fileRes.result && fileRes.result.file_path) {
-          const filePath = fileRes.result.file_path;
-          const photoUrl = `https://api.telegram.org/file/bot${BOT_TOKEN}/${filePath}`;
-          await tgCall("sendPhoto", {
-            chat_id: chatId,
-            photo: photoUrl,
-            caption: "✨ استیکر با موفقیت به عکس تبدیل شد.",
-            reply_to_message_id: msg.reply_to_message.message_id
-          });
-          return;
-        } else {
-          return await sendMessage(chatId, "❌ خطا در دریافت لینک استیکر.", msg.message_id);
-        }
-      } catch (e) {
-        return await sendMessage(chatId, "❌ خطا در تبدیل استیکر به عکس.", msg.message_id);
-      }
     }
 
     const calcMatch = text.match(/^([\d\.]+)\s*([\+\-\*\/×÷])\s*([\d\.]+)$/);
