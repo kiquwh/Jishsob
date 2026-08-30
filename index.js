@@ -9,8 +9,8 @@ const BOT_TOKEN = process.env.BOT_TOKEN || "8991397075:AAEXNRuY3RIY2JTNNy0bEJV91
 const TELEGRAM_API = "https://api.telegram.org/bot" + BOT_TOKEN;
 const OWNER_ID = "8854073031";
 const BOT_NAME = "𝑬𝟏𝟎 𝑴𝒂𝒏𝒂𝒈𝒆𝒓";
-const BOT_USERNAME = "@idVantaHUBbot";
-const DEFAULT_CHANNEL = "@Vantahub1792";
+const BOT_USERNAME = "@E10_ManagerBot";
+const DEFAULT_CHANNEL = "";
 
 const PORT = process.env.PORT || 3000;
 
@@ -190,7 +190,7 @@ function createNewGroupData(adderId = null) {
     welcome_text: DEFAULT_WELCOME,
     rules: "",
     req_adds: 0,
-    forced_channels: [DEFAULT_CHANNEL],
+    forced_channels: DEFAULT_CHANNEL ? [DEFAULT_CHANNEL] : [],
     user_added_ids: {},
     spam_limit: 0,
     spam_action: { type: "mute", minutes: 5 },
@@ -209,7 +209,7 @@ async function getGroupData(env, chatId) {
         if (!data.user_added_ids) data.user_added_ids = {};
         if (!data.user_recent_msgs) data.user_recent_msgs = {};
         if (!data.filtered_words) data.filtered_words = {};
-        if (!data.forced_channels) data.forced_channels = [DEFAULT_CHANNEL];
+        if (!data.forced_channels) data.forced_channels = DEFAULT_CHANNEL ? [DEFAULT_CHANNEL] : [];
         if (!data.spam_action) data.spam_action = { type: "mute", minutes: 5 };
         if (!data.stats) data.stats = { total: 0, today: 0, date: new Date().toISOString().split('T')[0], user_msg_count: {}, user_names: {} };
         if (!data.stats.user_names) data.stats.user_names = {};
@@ -339,11 +339,13 @@ function getAdminPanelKeyboard(isOff, userId) {
   return { inline_keyboard: keyboard };
 }
 
-// Function to update Group Permissions based on Locks
+// Function to update Group Permissions based on Locks (Updated to completely restrict media/photos/stickers natively)
 async function updateGroupPermissions(chatId, locks) {
   const canSendMessages = !locks.text;
   const canSendMedia = !locks.photo && !locks.video && !locks.audio;
   const canSendOther = !locks.sticker && !locks.animation && !locks.location;
+  const canSendPhotos = !locks.photo;
+  const canSendVideos = !locks.video;
 
   await tgCall("setChatPermissions", {
     chat_id: chatId,
@@ -351,6 +353,8 @@ async function updateGroupPermissions(chatId, locks) {
       can_send_messages: canSendMessages,
       can_send_media_messages: canSendMedia,
       can_send_other_messages: canSendOther,
+      can_send_photos: canSendPhotos,
+      can_send_videos: canSendVideos,
       can_add_web_page_previews: !locks.link
     }
   });
@@ -381,7 +385,7 @@ async function handleUpdate(update, env) {
       if (data === "check_multi_sub") {
         const chatId = cb.message.chat.id;
         const g = await getGroupData(env, chatId);
-        const channels = g.forced_channels || [DEFAULT_CHANNEL];
+        const channels = g.forced_channels || [];
         
         let allJoined = true;
         for (const ch of channels) {
@@ -746,7 +750,7 @@ async function handleUpdate(update, env) {
       }
 
       if (text === "📢 کانال ما") {
-        return await sendMessage(chatId, "📢 **کانال رسمی ربات:**\n" + DEFAULT_CHANNEL, msg.message_id, getPrivateKeyboard());
+        return await sendMessage(chatId, "📢 **کانال رسمی ربات:**\n" + (DEFAULT_CHANNEL || "ثبت نشده است"), msg.message_id, getPrivateKeyboard());
       }
 
       if (text === "➕ افزودن به گپ") {
@@ -1078,7 +1082,7 @@ async function handleUpdate(update, env) {
       const wordToFont = text.replace("فونت ", "").trim();
       const fonts = [
         wordToFont.split("").map(c => {
-          const map = {a:"𝖆",b:"𝖇",c:"𝖈",d:"𝖉",e:"𝖊",f:"𝖋",g:"𝖌",h:"𝖍",i:"𝖎",j:"𝖏",k:"𝖐",l:"𝖑",m:"𝖒",n:"𝖓",o:"𝖔",p:"𝖕",q:"𝖖",r:"𝖗",s:"𝖘",t:"𝖙",u:"𝖚",v:"𝖛",w:"𝖜",x:"𝖞",z:"𝖟"};
+          const map = {a:"𝖆",b:"𝖇",c:"𝖈",d:"𝖉",e:"𝖊",f:"𝖋",g:"𝖌",h:"𝍀",i:"𝖎",j:"𝖏",k:"𝖐",l:"𝖑",m:"𝖒",n:"𝖓",o:"𝖔",p:"𝖕",q:"𝖖",r:"𝖗",s:"𝖘",t:"𝖙",u:"𝖚",v:"𝖛",w:"𝖜",x:"𝖞",z:"𝖟"};
           return map[c.toLowerCase()] || c;
         }).join(""),
         wordToFont.split("").map(c => {
