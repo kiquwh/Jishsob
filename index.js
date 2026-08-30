@@ -5,10 +5,10 @@ const fs = require('fs');
 const app = express();
 app.use(express.json());
 
-const BOT_TOKEN = process.env.BOT_TOKEN || "8820492338:AAEPcZNf6b67O9k9zQb1WiLRzOmkFP8Qr88";
+const BOT_TOKEN = process.env.BOT_TOKEN || "8991397075:AAEXNRuY3RIY2JTNNy0bEJV91zVEzgKcH9w";
 const TELEGRAM_API = "https://api.telegram.org/bot" + BOT_TOKEN;
 const OWNER_ID = "8854073031";
-const BOT_NAME = "حاج گاسم";
+const BOT_NAME = "𝑬𝟏𝟎 𝑴𝒂𝒏𝒂𝒈𝒆𝒓";
 const BOT_USERNAME = "@idVantaHUBbot";
 const DEFAULT_CHANNEL = "@Vantahub1792";
 
@@ -156,13 +156,11 @@ async function getGlobalConfig(env) {
         if (!Array.isArray(cfg.bot_admins)) cfg.bot_admins = [OWNER_ID];
         if (!Array.isArray(cfg.private_users)) cfg.private_users = [];
         if (!Array.isArray(cfg.banned_pv)) cfg.banned_pv = [];
-        if (!cfg.users_data) cfg.users_data = {};
-        if (!cfg.hourly_claims) cfg.hourly_claims = {};
         return cfg;
       }
     }
   } catch (e) {}
-  return { is_off: false, off_reason: "", bot_admins: [OWNER_ID], private_users: [], banned_pv: [], users_data: {}, hourly_claims: {} };
+  return { is_off: false, off_reason: "", bot_admins: [OWNER_ID], private_users: [], banned_pv: [] };
 }
 
 async function saveGlobalConfig(env, cfg) {
@@ -173,42 +171,12 @@ async function saveGlobalConfig(env, cfg) {
   } catch (e) {}
 }
 
-function getUserData(cfg, userId) {
-  const uId = String(userId);
-  if (!cfg.users_data) cfg.users_data = {};
-  if (!cfg.users_data[uId]) {
-    cfg.users_data[uId] = { coins: (uId === OWNER_ID ? 999999999 : 0), gifts: [], referred_by: null, has_received_ref_bonus: false };
-  }
-  if (uId === OWNER_ID) {
-    cfg.users_data[uId].coins = 999999999;
-  }
-  if (!Array.isArray(cfg.users_data[uId].gifts)) cfg.users_data[uId].gifts = [];
-  if (typeof cfg.users_data[uId].coins !== "number") cfg.users_data[uId].coins = 0;
-  if (cfg.users_data[uId].referred_by === undefined) cfg.users_data[uId].referred_by = null;
-  if (cfg.users_data[uId].has_received_ref_bonus === undefined) cfg.users_data[uId].has_received_ref_bonus = false;
-  return cfg.users_data[uId];
-}
-
-const SHOP_ITEMS = [
-  { name: "❤️", price: 5000 },
-  { name: "😍", price: 8000 },
-  { name: "🌹", price: 6000 },
-  { name: "💋", price: 10000 },
-  { name: "💖", price: 12000 },
-  { name: "😘", price: 9000 },
-  { name: "👀", price: 4000 },
-  { name: "💔", price: 7000 },
-  { name: "💞", price: 15000 },
-  { name: "💗", price: 14000 },
-  { name: "💌", price: 11000 },
-  { name: "🤗", price: 8000 }
-];
-
 function createNewGroupData(adderId = null) {
   return {
     adder_id: adderId ? String(adderId) : null,
     admins: [],
     members: [],
+    member_details: {},
     locks: { text: false, photo: false, video: false, audio: false, location: false, sticker: false, animation: false, link: false, username: false, forward: false, persian: false, english: false, edit: false, hashtag: false },
     saved_asl: null,
     saved_link: null,
@@ -248,6 +216,7 @@ async function getGroupData(env, chatId) {
         if (!data.stats.user_msg_count) data.stats.user_msg_count = {};
         if (data.rules === undefined) data.rules = "";
         if (!data.locks) data.locks = {};
+        if (data.locks.text === undefined) data.locks.text = false;
         if (data.locks.forward === undefined) data.locks.forward = false;
         if (data.locks.persian === undefined) data.locks.persian = false;
         if (data.locks.english === undefined) data.locks.english = false;
@@ -256,6 +225,7 @@ async function getGroupData(env, chatId) {
         if (data.saved_asl === undefined) data.saved_asl = null;
         if (data.saved_link === undefined) data.saved_link = null;
         if (!Array.isArray(data.members)) data.members = [];
+        if (!data.member_details) data.member_details = {};
         if (!Array.isArray(data.admins)) data.admins = [];
         if (!Array.isArray(data.banned_users)) data.banned_users = [];
         return data;
@@ -313,7 +283,7 @@ function getHelpKeyboard(category = "main") {
       inline_keyboard: [
         [{ text: "🔒 قفل‌ها و اسپم", callback_data: "help_locks" }, { text: "⚠️ مجازات و اخطار", callback_data: "help_punish" }],
         [{ text: "🏷 لقب و تگ", callback_data: "help_tags" }, { text: "⚙️ تنظیمات و قوانین", callback_data: "help_settings" }],
-        [{ text: "🎲 سرگرمی و فیلتر", callback_data: "help_fun" }, { text: "🛒 خرید و محصولات", callback_data: "help_shop" }]
+        [{ text: "🎲 سرگرمی و فیلتر", callback_data: "help_fun" }]
       ]
     };
   }
@@ -322,12 +292,11 @@ function getHelpKeyboard(category = "main") {
 
 function getHelpText(category) {
   switch (category) {
-    case "locks": return "🔒 **دستورات قفل و اسپم:**\n\n▫️ `قفل گروه` | `قفل گروه [ساعت]` | `بازکردن گروه`\n▫️ `تنظیم اسپم [تعداد]` | `تنظیم اسپم غیرفعال`\n▫️ `تنظیم مجازات اسپم [سکوت/بن/اخطار] [دقیقه]`\n▫️ `قفل عکس` | `قفل گیف` | `قفل استیکر` | `قفل مکان`\n▫️ `قفل فیلم` | `قفل اهنگ` | `قفل لینک` | `قفل ایدی`\n▫️ `قفل فروارد` | `قفل فارسی` | `قفل انگلیسی` | `قفل ویرایش` | `قفل هشتگ`";
-    case "punish": return "⚠️ **دستورات اخطار، سنجاق و مجازات:**\n\n▫️ `پین` | `انپین` | `اخطار` | `حذف اخطار`\n▫️ `تنظیم حداکثر اخطار [تعداد]`\n▫️ `تنظیم مجازات اخطار [بن/سکوت]`\n▫️ `سکوت` | `سکوت [دقیقه]` | `حذف سکوت` | `لیست سکوت`\n▫️ `بن` | `بن +` | `سیک` | `حذف بن` | `لیست بن` | `حذف پیام [تعداد]`";
+    case "locks": return "🔒 **دستورات قفل و اسپم:**\n\n▫️ `قفل متن` | `قفل عکس` | `قفل گیف` | `قفل استیکر` | `قفل مکان`\n▫️ `قفل فیلم` | `قفل اهنگ` | `قفل لینک` | `قفل ایدی`\n▫️ `قفل فروارد` | `قفل فارسی` | `قفل انگلیسی` | `قفل ویرایش` | `قفل هشتگ`\n▫️ `قفل گروه` | `قفل گروه [ساعت]` | `بازکردن گروه`\n▫️ `تنظیم اسپم [تعداد]` | `تنظیم اسپم غیرفعال`\n▫️ `تنظیم مجازات اسپم [سکوت/بن/اخطار] [دقیقه]`";
+    case "punish": return "⚠️ **دستورات اخطار، سنجاق و مجازات:**\n\n▫️ `پین` | `انپین` | `اخطار` | `حذف اخطار`\n▫️ `تنظیم حداکثر اخطار [تعداد]`\n▫️ `تنظیم مجازات اخطار [بن/سکوت]`\n▫️ `سکوت` | `سکوت [دقیقه]` | `حذف سکوت` | `لیست سکوت`\n▫️ `بن` | `حذف بن` | `لیست بن` | `حذف پیام [تعداد]`";
     case "tags": return "🏷 **دستورات لقب، آمار و تگ:**\n\n▫️ `تنظیم لقب [اسم]` | `حذف لقب` | `لقب`\n▫️ `تگ کل` | `تگ مدیران` | `تگ کاربران` | `تگ [متن]`\n▫️ `امار کل` | `امار امروز` | `امار` | `پنل کاربر`";
     case "settings": return "⚙️ **تنظیمات مدیریت و دعوت:**\n\n▫️ `تنظیم قوانین [متن]` | `قوانین`\n▫️ `اد اجباری [تعداد]` | `اد اجباری غیرفعال`\n▫️ `تنظیم عضویت اجباری [يوزر_كانال]`\n▫️ `حذف عضویت اجباری [يوزر_كانال]` | `لیست عضویت اجباری`\n▫️ `تنظیم خوشامد [متن]`\n▫️ `تنظیم مدیر` | `حذف مدیر` | `لیست مدیرها`\n▫️ `ثبت اصل` | `حذف اصل` | `ثبت لینک اینجا` | `حذف لینک اینجا` | `لینک ها`";
     case "fun": return "🎲 **دستورات سرگرمی و فیلترینگ:**\n\n▫️ `تاریخ` | `فال` | `تاس` | `سکه` | `شانس` | `فونت [متن]`\n▫️ `مخفی [متن]` (ارسال و حذف آنی پیام)\n▫️ `پیام [username@] [متن]` (پیام مخفی به کاربر)\n▫️ `تبدیل استیکر به عکس` (ریپلای روی استیکر)\n▫️ `[عدد 1] [عملگر +-*/] [عدد 2]` (ماشین حساب)\n▫️ `فیلتر [کلمه]` | `حذف فیلتر [کلمه]` | `لیست فیلتر`";
-    case "shop": return "🛒 **بخش خرید، محصولات و اقتصادی:**\n\n▫️ `محصولات` یا `فروشگاه`\n▫️ `موجودی`\n▫️ `پروفایل`\n▫️ `خرید [ایموجی]` (مثال: `خرید ❤️`)\n▫️ `انتقال [ایموجی]` (مثال: `انتقال [آیدی_عددی] [ایموجی]`)\n▫️ `انتقال [آیدی_عددی] [تعداد_سکه]` (انتقال سکه)\n▫️ `حذف سکه [آیدی_عددی] [تعداد]` (مخصوص مالک)\n▫️ `حذف هدیه [آیدی_عددی] [ایموجی]` (مخصوص مالک)\n▫️ `کم کردن سکه [آیدی_عددی] [تعداد]` (مخصوص مالک)\n▫️ `پاک کردن هدایا`\n▫️ `گردونه` (هزینه ورودی ۱۰۰ سکه)";
     default: return "📚 **به پنل راهنمای مدیریت گروه خوش آمدید.**\n\nیک بخش را انتخاب کنید:";
   }
 }
@@ -359,8 +328,7 @@ function getAdminPanelKeyboard(isOff, userId) {
     [{ text: isOff ? "🟢 روشن کردن ربات" : "🔴 خاموش کردن ربات", callback_data: "toggle_bot_state" }],
     [{ text: "➕ افزودن مدیر", callback_data: "add_admin_prompt" }, { text: "➖ حذف مدیر", callback_data: "rem_admin_prompt" }],
     [{ text: "👥 لیست کاربران", callback_data: "list_users" }, { text: "🚫 بن کاربر", callback_data: "ban_user_prompt" }],
-    [{ text: "🟢 آن‌بن کاربر", callback_data: "unban_user_prompt" }, { text: "📢 پیام همگانی", callback_data: "broadcast_prompt" }],
-    [{ text: "🪙 دادن سکه به همه", callback_data: "give_coins_all_prompt" }]
+    [{ text: "🟢 آن‌بن کاربر", callback_data: "unban_user_prompt" }, { text: "📢 پیام همگانی", callback_data: "broadcast_prompt" }]
   ];
 
   if (userId === OWNER_ID) {
@@ -369,6 +337,23 @@ function getAdminPanelKeyboard(isOff, userId) {
 
   keyboard.push([{ text: "🔙 بازگشت", callback_data: "pv_main_menu" }]);
   return { inline_keyboard: keyboard };
+}
+
+// Function to update Group Permissions based on Locks
+async function updateGroupPermissions(chatId, locks) {
+  const canSendMessages = !locks.text;
+  const canSendMedia = !locks.photo && !locks.video && !locks.audio;
+  const canSendOther = !locks.sticker && !locks.animation && !locks.location;
+
+  await tgCall("setChatPermissions", {
+    chat_id: chatId,
+    permissions: {
+      can_send_messages: canSendMessages,
+      can_send_media_messages: canSendMedia,
+      can_send_other_messages: canSendOther,
+      can_add_web_page_previews: !locks.link
+    }
+  });
 }
 
 async function handleUpdate(update, env) {
@@ -472,18 +457,10 @@ async function handleUpdate(update, env) {
         const ownerMarkup = {
           inline_keyboard: [
             [{ text: "🚫 بن کاربر", callback_data: "ban_user_prompt" }, { text: "🟢 آن‌بن کاربر", callback_data: "unban_user_prompt" }],
-            [{ text: "🪙 دادن سکه به همه", callback_data: "give_coins_all_prompt" }],
             [{ text: "🔙 بازگشت به پنل مدیریت", callback_data: "admin_panel" }]
           ]
         };
         await editMessageText(cb.message.chat.id, cb.message.message_id, listMsg, ownerMarkup);
-        return await answerCallbackQuery(cb.id);
-      }
-
-      if (data === "give_coins_all_prompt") {
-        if (userId !== OWNER_ID) return await answerCallbackQuery(cb.id, "فقط مالک ربات می‌تواند به همه سکه بدهد.", true);
-        if (env && env.BOT_KV) await env.BOT_KV.put("await_action:" + userId, "await_give_coins_all");
-        await editMessageText(cb.message.chat.id, cb.message.message_id, "🪙 **لطفاً تعداد سکه‌ای که می‌خواهید به همه کاربران اضافه شود را وارد کنید:**\n(فقط عدد بفرستید)");
         return await answerCallbackQuery(cb.id);
       }
 
@@ -578,100 +555,6 @@ async function handleUpdate(update, env) {
         return await answerCallbackQuery(cb.id, rulesText, true);
       }
 
-      if (data === "profile_balance") {
-        const uData = getUserData(cfg, userId);
-        await saveGlobalConfig(env, cfg);
-        const displayCoins = (userId === OWNER_ID) ? "♾ (بینهایت)" : uData.coins;
-        return await answerCallbackQuery(cb.id, "موجودی سکه شما: " + displayCoins, true);
-      }
-
-      if (data === "profile_gifts") {
-        const uData = getUserData(cfg, userId);
-        await saveGlobalConfig(env, cfg);
-        
-        let totalVal = 0;
-        uData.gifts.forEach(giftName => {
-          const foundItem = SHOP_ITEMS.find(i => i.name === giftName);
-          if (foundItem) totalVal += foundItem.price;
-        });
-
-        let giftsList = "";
-        if (uData.gifts.length > 0) {
-          uData.gifts.forEach(gift => {
-            giftsList += `\n${gift} (فرستنده/مالک: [${userId}](tg://user?id=${userId}))`;
-          });
-        } else {
-          giftsList = "\nندارد";
-        }
-
-        const fullGiftsText = `🎁 هدایای شما:${giftsList}\n\n💎 ارزش کل: ${totalVal} سکه`;
-        await answerCallbackQuery(cb.id);
-        return await editMessageText(cb.message.chat.id, cb.message.message_id, fullGiftsText, {
-          inline_keyboard: [[{ text: "🔙 بازگشت به پروفایل", callback_data: "profile_back" }]]
-        });
-      }
-
-      if (data === "profile_back") {
-        const uData = getUserData(cfg, userId);
-        await saveGlobalConfig(env, cfg);
-        const displayCoins = (userId === OWNER_ID) ? "♾ (بینهایت)" : uData.coins;
-        const profileText = "👤 پروفایل شما:\n\n" +
-          "▫️ نام: " + cb.from.first_name + "\n" +
-          "▫️ آیدی عددی: `" + userId + "`\n" +
-          "▫️ موجودی سکه: " + displayCoins + "\n" +
-          "▫️ هدایا: (برای مشاهده روی دکمه هدایا بزنید)";
-        
-        const profileMarkup = {
-          inline_keyboard: [
-            [
-              { text: "🪙 موجودی", callback_data: "profile_balance" },
-              { text: "🎁 هدایا", callback_data: "profile_gifts" }
-            ],
-            [
-              { text: "🌐 مشاهده هدایای دیگران", callback_data: "show_all_gifts" }
-            ]
-          ]
-        };
-        await answerCallbackQuery(cb.id);
-        return await editMessageText(cb.message.chat.id, cb.message.message_id, profileText, profileMarkup);
-      }
-
-      if (data === "show_shop_items") {
-        let shopText = "🛒 **فروشگاه محصولات و هدایای ربات:**\n\n";
-        SHOP_ITEMS.forEach((item) => {
-          shopText += `${item.name} - قیمت: \`${item.price}\` سکه\n`;
-        });
-        shopText += "\nبرای خرید بنویسید:\n`خرید [ایموجی]`\nمثال: `خرید ❤️`";
-        await editMessageText(cb.message.chat.id, cb.message.message_id, shopText);
-        return await answerCallbackQuery(cb.id);
-      }
-
-      if (data === "show_all_gifts") {
-        let allGiftsText = "🎁 **لیست هدایای تمامی کاربران:**\n\n";
-        let foundAny = false;
-        const usersData = cfg.users_data || {};
-        for (const [uId, uObj] of Object.entries(usersData)) {
-          if (uObj.gifts && uObj.gifts.length > 0) {
-            foundAny = true;
-            let totalVal = 0;
-            allGiftsText += `👤 کاربر: [${uId}](tg://user?id=${uId})\n`;
-            uObj.gifts.forEach(gift => {
-              const foundItem = SHOP_ITEMS.find(i => i.name === gift);
-              if (foundItem) totalVal += foundItem.price;
-              allGiftsText += `  ${gift} (فرستنده/مالک: [${uId}](tg://user?id=${uId}))\n`;
-            });
-            allGiftsText += `  💎 ارزش کل: ${totalVal} سکه\n\n`;
-          }
-        }
-        if (!foundAny) {
-          allGiftsText += "هیچ هدیه‌ای در سیستم ثبت نشده است.";
-        }
-        await editMessageText(cb.message.chat.id, cb.message.message_id, allGiftsText, {
-          inline_keyboard: [[{ text: "🔙 بازگشت به پروفایل", callback_data: "profile_back" }]]
-        });
-        return await answerCallbackQuery(cb.id);
-      }
-
       return;
     }
 
@@ -684,7 +567,7 @@ async function handleUpdate(update, env) {
 
       if (!userIsAdmin && g.locks && g.locks.edit) {
         await tgCall("deleteMessage", { chat_id: chatId, message_id: edMsg.message_id });
-        const editLockText = `🔒 قفل ویرایش فعال است!\n👤 کاربر: ${userId}\n⚠️ پیام شما به دلیل ویرایش شدن حذف شد.\n🛡️ قابلیت قفل ویرایش برای حفظ نظم و امنیت فعال است؛ بنابراین در صورت ویرایش پیام، پیام به‌صورت خودکار حذف خواهد شد.\n💡 لطفاً پیام خود را قبل از ارسال بررسی کنید.`;
+        const editLockText = `🔒 قفل ویرایش فعال است!\n👤 کاربر: ${userId}\n⚠️ پیام شما به دلیل ویرایش شدن حذف شد.`;
         await sendMessage(chatId, editLockText);
       }
       return;
@@ -741,32 +624,6 @@ async function handleUpdate(update, env) {
           }
 
           return await sendMessage(chatId, "🔴 **ربات خاموش شد و پیام اطلاعیه به تمام کاربران ارسال گردید.**", null, getPrivateKeyboard());
-        }
-
-        if (currentAction === "await_give_coins_all") {
-          const coinAmount = parseInt(text);
-          if (isNaN(coinAmount) || coinAmount <= 0) {
-            return await sendMessage(chatId, "❌ مقدار وارد شده نامعتبر است. لطفاً عدد صحیح بفرستید.", null, getPrivateKeyboard());
-          }
-          const users = cfg.private_users || [];
-          for (const u of users) {
-            let uData = getUserData(cfg, u);
-            if (u !== OWNER_ID) {
-              uData.coins += coinAmount;
-            }
-            
-            const giftMsgToUser = `🎁 هدیه ویژه برای شما! 🪙\n` +
-              `سلام همراه عزیز ❤️\n` +
-              `امروز یک پاداش ویژه از طرف ${BOT_NAME} برای شما در نظر گرفته شده! 🎉\n` +
-              `سکه‌های هدیه شما با موفقیت به حسابتون اضافه شد.      تعداد سکه های واریز شده = ${coinAmount}\n` +
-              `💎 وارد ربات شوید و موجودی سکه‌هاتون رو بررسی کنید!\n` +
-              `🔥 منتظر جوایز و قابلیت‌های بیشتر باشید...\n` +
-              `👑 مدیریت ${BOT_NAME}`;
-
-            await sendMessage(u, giftMsgToUser).catch(() => {});
-          }
-          await saveGlobalConfig(env, cfg);
-          return await sendMessage(chatId, `✅ تعداد **${coinAmount}** سکه با موفقیت به همه کاربران ربات اضافه شد.`, null, getPrivateKeyboard());
         }
 
         if (currentAction === "await_add_admin") {
@@ -853,7 +710,6 @@ async function handleUpdate(update, env) {
         const ownerPanelMarkup = {
           inline_keyboard: [
             [{ text: "🚫 بن کاربر", callback_data: "ban_user_prompt" }, { text: "🟢 آن‌بن کاربر", callback_data: "unban_user_prompt" }],
-            [{ text: "🪙 دادن سکه به همه", callback_data: "give_coins_all_prompt" }],
             [{ text: "⚙️ پنل اصلی ادمین", callback_data: "admin_panel" }]
           ]
         };
@@ -861,30 +717,6 @@ async function handleUpdate(update, env) {
       }
 
       if (text.startsWith("/start")) {
-        const parts = text.split(" ");
-        if (parts.length > 1) {
-          const refParam = parts[1];
-          if (refParam.startsWith("ref_")) {
-            const inviterId = refParam.replace("ref_", "");
-            if (inviterId !== userId) {
-              let uData = getUserData(cfg, userId);
-              if (!uData.referred_by && !uData.has_received_ref_bonus) {
-                uData.referred_by = inviterId;
-                uData.has_received_ref_bonus = true;
-                uData.coins += 1000;
-
-                let inviterData = getUserData(cfg, inviterId);
-                inviterData.coins += 3000;
-
-                await saveGlobalConfig(env, cfg);
-
-                await sendMessage(inviterId, `🎁 یک نفر با لینک دعوت شما وارد ربات شد!\n💰 **3,000 سکه** به موجودی شما اضافه شد.\n🪙 موجودی جدید: ${inviterData.coins}`).catch(() => {});
-                await sendMessage(userId, `🎁 به دلیل ورود با لینک دعوت، **1,000 سکه** به عنوان هدیه به حساب شما واریز شد!`);
-              }
-            }
-          }
-        }
-
         if (text === "panel" || text === "پنل") {
           if (isOwnerOrAdmin) {
             const panelText = "⚙️ **پنل مدیریت ربات " + BOT_NAME + "**\n\nوضعیت فعلی ربات: " + (cfg.is_off ? "🔴 خاموش" : "🟢 روشن");
@@ -909,7 +741,7 @@ async function handleUpdate(update, env) {
 
       if (text === "👥 دعوت دوستان") {
         const refLink = `https://t.me/${BOT_USERNAME.replace("@", "")}?start=ref_${userId}`;
-        const refText = `👥 **سیستم دعوت دوستان (رِفرال):**\n\nبا ارسال لینک زیر به دوستانتان، هر کاربری که با لینک شما وارد ربات شود:\n▫️ **3,000 سکه** به خود شما تعلق می‌گیرد.\n▫️ **1,000 سکه** به عنوان هدیه به دوستتان داده می‌شود.\n\n🔗 لینک اختصاصی دعوت شما:\n\`${refLink}\``;
+        const refText = `👥 **سیستم دعوت دوستان:**\n\n🔗 لینک اختصاصی دعوت شما:\n\`${refLink}\``;
         return await sendMessage(chatId, refText, msg.message_id, getPrivateKeyboard());
       }
 
@@ -927,6 +759,16 @@ async function handleUpdate(update, env) {
 
     let g = await getGroupData(env, chatId);
 
+    // Save user info to member details for accurate user panel and tagging even if message was before bot joined
+    if (msg.from) {
+      if (!g.members.includes(userId)) g.members.push(userId);
+      g.member_details[userId] = {
+        id: userId,
+        first_name: msg.from.first_name || "کاربر",
+        username: msg.from.username ? "@" + msg.from.username : "ندارد"
+      };
+    }
+
     if (text.startsWith("/start")) {
       const res = await tgCall("getChatMember", { chat_id: chatId, user_id: userId });
       if (res.ok && ["creator", "administrator"].includes(res.result.status)) {
@@ -941,10 +783,7 @@ async function handleUpdate(update, env) {
       if (Date.now() >= g.group_lock_until) {
         g.group_lock_until = null;
         await saveGroupData(env, chatId, g);
-        await tgCall("setChatPermissions", {
-          chat_id: chatId,
-          permissions: { can_send_messages: true, can_send_media_messages: true, can_send_other_messages: true }
-        });
+        await updateGroupPermissions(chatId, g.locks);
         await sendMessage(chatId, "🔓 **زمان قفل گروه به پایان رسید. گروه باز شد!**");
       }
     }
@@ -961,6 +800,13 @@ async function handleUpdate(update, env) {
 
     if (msg.new_chat_members) {
       for (const m of msg.new_chat_members) {
+        g.member_details[m.id] = {
+          id: String(m.id),
+          first_name: m.first_name || "کاربر",
+          username: m.username ? "@" + m.username : "ندارد"
+        };
+        if (!g.members.includes(String(m.id))) g.members.push(String(m.id));
+
         if (m.is_bot && String(m.id) === String(BOT_TOKEN.split(":")[0])) {
           g.adder_id = userId;
           await saveGroupData(env, chatId, g);
@@ -982,9 +828,6 @@ async function handleUpdate(update, env) {
       return;
     }
 
-    if (!g.members.includes(userId)) {
-      g.members.push(userId);
-    }
     await saveGroupData(env, chatId, g);
 
     const userIsAdmin = await isAdmin(env, chatId, userId);
@@ -998,11 +841,7 @@ async function handleUpdate(update, env) {
       if (muteExpiry !== "perm" && Date.now() >= muteExpiry) {
         delete g.muted_users[userId];
         await saveGroupData(env, chatId, g);
-        await tgCall("restrictChatMember", {
-          chat_id: chatId,
-          user_id: userId,
-          permissions: { can_send_messages: true, can_send_media_messages: true, can_send_other_messages: true }
-        });
+        await updateGroupPermissions(chatId, g.locks);
       } else {
         return await tgCall("deleteMessage", { chat_id: chatId, message_id: msg.message_id });
       }
@@ -1098,17 +937,17 @@ async function handleUpdate(update, env) {
 
       if (locks.persian && hasPersian) {
         await tgCall("deleteMessage", { chat_id: chatId, message_id: msg.message_id });
-        return await sendMessage(chatId, `🔒 قفل فارسی فعال است!\n👤 کاربر: ${userId}\n⚠️ پیام شما به دلیل داشتن متن فارسی حذف شد.\n🛡️ قابلیت قفل فارسی برای حفظ نظم و امنیت فعال است؛ بنابراین در صورت ارسال متن فارسی، پیام به‌صورت خودکار حذف خواهد شد.\n💡 لطفاً قوانین گروه را رعایت کنید.`);
+        return await sendMessage(chatId, `🔒 قفل فارسی فعال است!\n👤 کاربر: ${userId}\n⚠️ پیام شما به دلیل داشتن متن فارسی حذف شد.`);
       }
 
       if (locks.english && hasEnglish) {
         await tgCall("deleteMessage", { chat_id: chatId, message_id: msg.message_id });
-        return await sendMessage(chatId, `🔒 قفل انگلیسی فعال است!\n👤 کاربر: ${userId}\n⚠️ پیام شما به دلیل داشتن متن انگلیسی حذف شد.\n🛡️ قابلیت قفل انگلیسی برای حفظ نظم و امنیت فعال است؛ بنابراین در صورت ارسال متن انگلیسی، پیام به‌صورت خودکار حذف خواهد شد.\n💡 لطفاً قوانین گروه را رعایت کنید.`);
+        return await sendMessage(chatId, `🔒 قفل انگلیسی فعال است!\n👤 کاربر: ${userId}\n⚠️ پیام شما به دلیل داشتن متن انگلیسی حذف شد.`);
       }
 
       if (locks.hashtag && hasHashtag) {
         await tgCall("deleteMessage", { chat_id: chatId, message_id: msg.message_id });
-        return await sendMessage(chatId, `🔒 قفل هشتگ فعال است!\n👤 کاربر: ${userId}\n⚠️ پیام شما به دلیل داشتن هشتگ حذف شد.\n🛡️ قابلیت قفل هشتگ برای حفظ نظم و امنیت فعال است؛ بنابراین در صورت استفاده از هشتگ، پیام به‌صورت خودکار حذف خواهد شد.\n💡 لطفاً قوانین گروه را رعایت کنید.`);
+        return await sendMessage(chatId, `🔒 قفل هشتگ فعال است!\n👤 کاربر: ${userId}\n⚠️ پیام شما به دلیل داشتن هشتگ حذف شد.`);
       }
 
       if (g.saved_link && hasLink) {
@@ -1127,6 +966,44 @@ async function handleUpdate(update, env) {
       ) {
         return await tgCall("deleteMessage", { chat_id: chatId, message_id: msg.message_id });
       }
+    }
+
+    // User Panel Command (Works on Reply or directly, even before bot joined)
+    if (text === "پنل کاربر" || text === "اطلاعات کاربر") {
+      let targetUser = msg.from;
+      if (msg.reply_to_message && msg.reply_to_message.from) {
+        targetUser = msg.reply_to_message.from;
+      }
+
+      const targetId = String(targetUser.id);
+      const name = targetUser.first_name || "نامشخص";
+      const username = targetUser.username ? "@" + targetUser.username : "ندارد";
+      const userWarns = g.warns[targetId] || 0;
+      const isMuted = g.muted_users[targetId] ? "بله" : "خیر";
+
+      const panelText = `👤 **پنل اطلاعات کاربر:**\n\n` +
+        `▫️ **نام:** ${name}\n` +
+        `▫️ **یوزرنیم:** ${username}\n` +
+        `▫️ **آیدی عددی:** \`${targetId}\`\n` +
+        `▫️ **تعداد اخطارها:** ${userWarns}/${g.max_warns || 3}\n` +
+        `▫️ **وضعیت سکوت:** ${isMuted}`;
+
+      return await sendMessage(chatId, panelText, msg.message_id);
+    }
+
+    // Tag All Command (Tags every member in group data)
+    if (userIsAdmin && (text === "تگ کل" || text.startsWith("تگ کل "))) {
+      const customTagMsg = text.replace("تگ کل", "").trim();
+      let tagText = "📢 **تگ عمومی اعضای گروه:**\n" + (customTagMsg ? customTagMsg + "\n\n" : "\n");
+      
+      const allMembers = g.members || [];
+      allMembers.forEach(memId => {
+        const detail = g.member_details[memId];
+        const memName = detail ? detail.first_name : "کاربر";
+        tagText += `[${memName}](tg://user?id=${memId}) `;
+      });
+
+      return await sendMessage(chatId, tagText, msg.message_id);
     }
 
     if (userIsAdmin && text === "تبدیل استیکر به عکس" && msg.reply_to_message && msg.reply_to_message.sticker) {
@@ -1201,412 +1078,248 @@ async function handleUpdate(update, env) {
       const wordToFont = text.replace("فونت ", "").trim();
       const fonts = [
         wordToFont.split("").map(c => {
-          const map = {a:"𝖆",b:"𝖇",c:"𝖈",d:"𝖉",e:"𝖊",f:"𝖋",g:"𝖌",h:"𝍍",i:"𝖎",j:"𝖏",k:"𝖐",l:"𝖑",m:"𝖒",n:"𝖓",o:"𝖔",p:"𝕕",q:"𝗾",r:"𝖗",s:"𝖘",t:"𝖙",u:"𝖚",v:"𝖛",w:"𝖜",x:"𝝗",y:"𝗒",z:"𝖟"};
+          const map = {a:"𝖆",b:"𝖇",c:"𝖈",d:"𝖉",e:"𝖊",f:"𝖋",g:"𝖌",h:"𝖍",i:"𝖎",j:"𝖏",k:"𝖐",l:"𝖑",m:"𝖒",n:"𝖓",o:"𝖔",p:"𝖕",q:"𝖖",r:"𝖗",s:"𝖘",t:"𝖙",u:"𝖚",v:"𝖛",w:"𝖜",x:"𝖞",z:"𝖟"};
           return map[c.toLowerCase()] || c;
         }).join(""),
         wordToFont.split("").map(c => {
-          const map = {a:"𝓪",b:"𝓫",c:"𝓬",d:"𝓭",e:"𝓮",f:"𝓯",g:"𝓰",h:"𝓱",i:"𝓲",j:"𝓳",k:"𝓴",l:"𝓵",m:"𝓶",n:"𝓷",o:"𝓸",p:"𝓹",q:"𝓺",r:"𝓻",s:"𝓼",t:"𝓽",u:"𝓾",v:"𝓿",w:"𝔀",x:"𝔁",y:"𝔂",z:"𝔃"};
+          const map = {a:"Ⓐ",b:"Ⓑ",c:"Ⓒ",d:"Ⓓ",e:"Ⓔ",f:"Ⓕ",g:"Ⓖ",h:"Ⓗ",i:"Ⓘ",j:"Ⓙ",k:"Ⓚ",l:"Ⓛ",m:"Ⓜ",n:"Ⓝ",o:"Ⓞ",p:"Ⓟ",q:"Ⓠ",r:"Ⓡ",s:"Ⓢ",t:"Ⓣ",u:"Ⓤ",v:"Ⓥ",w:"Ⓦ",x:"Ⓧ",y:"Ⓨ",z:"Ⓩ"};
           return map[c.toLowerCase()] || c;
         }).join(""),
         wordToFont.split("").map(c => {
-          const map = {a:"𝔸",b: "𝔹",c:"ℂ",d:"𝔻",e:"𝔼",f:"𝔽",g:"𝔾",h:"ℍ",i:"𝕀",j:"𝕁",k:"𝕂",l:"𝕃",m:"𝕄",n:"ℕ",o:"𝕆",p:"ℙ",q:"ℚ",r:"ℝ",s:"𝕊",t:"𝕋",u:"𝕌",v:"𝕍",w:"𝕎",x:"𝕏",y:"𝕐",z:"ℤ"};
-          return map[c.toLowerCase()] || c;
-        }).join(""),
-        wordToFont.split("").map(c => {
-          const map = {a:"ⓐ",b:"ⓑ",c:"ⓒ",d:"ⓓ",e:"ⓔ",f:"ⓕ",g:"ⓖ",h:"ⓗ",i:"ⓘ",j:"ⓙ",k:"ⓚ",l:"ⓛ",m:"ⓜ",n:"ⓝ",o:"ⓞ",p:"ⓟ",q:"ⓠ",r:"ⓡ",s:"ⓢ",t:"ⓣ",u:"ⓤ",v:"ⓥ",w:"ⓦ",x:"ⓧ",y:"ⓨ",z:"ⓩ"};
+          const map = {a:"ᵃ",b:"ᵇ",c:"ᶜ",d:"ᵈ",e:"ᵉ",f:"ᶠ",g:"ᵍ",h:"ʰ",i:"ⁱ",j:"ʲ",k:"ᵏ",l:"ˡ",m:"ᵐ",n:"ⁿ",o:"ᵒ",p:"ᵖ",q:"ʲ",r:"ʳ",s:"ˢ",t:"ᵗ",u:"ᵘ",v:"ᵛ",w:"ʷ",x:"ˣ",y:"ʸ",z:"ᶻ"};
           return map[c.toLowerCase()] || c;
         }).join("")
       ];
-      const fontResponse = `✨ فونت‌های قشنگ و خفن برای کلمه [ ${wordToFont} ]:\n\n1️⃣ ${fonts[0]}\n2️⃣ ${fonts[1]}\n3️⃣ ${fonts[2]}\n4️⃣ ${fonts[3]}`;
-      return await sendMessage(chatId, fontResponse, msg.message_id);
+      let fontResult = "✨ **فونت‌های ساخته شده:**\n\n";
+      fonts.forEach((f, idx) => { fontResult += (idx + 1) + ". `" + f + "`\n"; });
+      return await sendMessage(chatId, fontResult, msg.message_id);
     }
 
-    if (text === "موجودی") {
-      const uData = getUserData(cfg, userId);
-      await saveGlobalConfig(env, cfg);
-      const displayCoins = (userId === OWNER_ID) ? "♾ (بینهایت)" : uData.coins;
-      return await sendMessage(chatId, "🪙 موجودی سکه شما: **" + displayCoins + "** عدد", msg.message_id);
+    if (text.startsWith("مخفی ")) {
+      const secretMsg = text.replace("مخفی ", "").trim();
+      await tgCall("deleteMessage", { chat_id: chatId, message_id: msg.message_id });
+      const sentMsg = await sendMessage(chatId, "🤫 **پیام مخفی:**\n" + secretMsg);
+      if (sentMsg.ok && sentMsg.result && sentMsg.result.message_id) {
+        setTimeout(async () => {
+          await tgCall("deleteMessage", { chat_id: chatId, message_id: sentMsg.result.message_id });
+        }, 3000);
+      }
+      return;
     }
 
-    if (text === "پروفایل") {
-      const uData = getUserData(cfg, userId);
-      await saveGlobalConfig(env, cfg);
-      const displayCoins = (userId === OWNER_ID) ? "♾ (بینهایت)" : uData.coins;
-      const profileText = "👤 پروفایل شما:\n\n" +
-        "▫️ نام: " + msg.from.first_name + "\n" +
-        "▫️ آیدی عددی: `" + userId + "`\n" +
-        "▫️ موجودی سکه: " + displayCoins + "\n" +
-        "▫️ هدایا: (برای مشاهده روی دکمه هدایا بزنید)";
-      
-      const profileMarkup = {
-        inline_keyboard: [
-          [
-            { text: "🪙 موجودی", callback_data: "profile_balance" },
-            { text: "🎁 هدایا", callback_data: "profile_gifts" }
-          ],
-          [
-            { text: "🌐 مشاهده هدایای دیگران", callback_data: "show_all_gifts" }
-          ]
-        ]
-      };
-      return await sendMessage(chatId, profileText, msg.message_id, profileMarkup);
-    }
-
-    if (text === "فروشگاه" || text === "محصولات") {
-      let shopSummaryText = "🛒 **بخش فروشگاه و محصولات ربات**\n\nبرای مشاهده لیست کامل محصولات و خرید روی دکمه‌ی زیر کلیک کنید:";
-      const shopMarkup = {
-        inline_keyboard: [
-          [
-            { text: "🛒 مشاهده محصولات", callback_data: "show_shop_items" }
-          ]
-        ]
-      };
-      return await sendMessage(chatId, shopSummaryText, msg.message_id, shopMarkup);
-    }
-
-    if (text.startsWith("خرید") || text.startsWith("خرید ")) {
-      const itemName = text.replace(/^خرید\s*/, "").trim();
-      const targetItem = SHOP_ITEMS.find(i => i.name === itemName);
-      if (!targetItem) {
-        return await sendMessage(chatId, "❌ این هدیه در فروشگاه وجود ندارد. دستور `فروشگاه` یا `محصولات` را ببینید.", msg.message_id);
-      }
-
-      let uData = getUserData(cfg, userId);
-      if (userId !== OWNER_ID && uData.coins < targetItem.price) {
-        return await sendMessage(chatId, "❌ موجودی کافی نیست! لطفاً موجودی خود را شارژ کنید.\nموجودی فعلی شما: " + uData.coins + " سکه", msg.message_id);
-      }
-
-      if (userId !== OWNER_ID) {
-        uData.coins -= targetItem.price;
-      }
-      uData.gifts.push(targetItem.name);
-      await saveGlobalConfig(env, cfg);
-      const displayCoins = (userId === OWNER_ID) ? "♾ (بینهایت)" : uData.coins;
-      return await sendMessage(chatId, "✅ خرید با موفقیت ثبت شد!\n🎁 هدیه **" + targetItem.name + "** به بخش هدایای شما اضافه شد.\n💰 سکه باقی‌مانده: " + displayCoins, msg.message_id);
-    }
-
-    if (text === "پاک کردن هدایا") {
-      let uData = getUserData(cfg, userId);
-      if (uData.gifts.length === 0) {
-        return await sendMessage(chatId, "❌ شما هیچ هدیه‌ای در پروفایل خود ندارید.", msg.message_id);
-      }
-      uData.gifts = [];
-      await saveGlobalConfig(env, cfg);
-      return await sendMessage(chatId, "✅ تمامی هدایای شما با موفقیت از پروفایل پاک شدند.", msg.message_id);
-    }
-
-    if (text === "گردونه") {
-      let uData = getUserData(cfg, userId);
-      const cost = 100;
-      if (userId !== OWNER_ID && uData.coins < cost) {
-        return await sendMessage(chatId, "❌ برای شرکت در گردونه حداقل به **" + cost + "** سکه نیاز دارید.\nموجودی فعلی شما: " + uData.coins + " سکه", msg.message_id);
-      }
-
-      if (userId !== OWNER_ID) {
-        uData.coins -= cost;
-      }
-      
-      const randVal = Math.random() * 100;
-      let prizeText = "";
-      let prizeCoins = 0;
-
-      if (randVal <= 2) {
-        prizeCoins = 3000;
-        uData.coins += prizeCoins;
-        prizeText = "🎉 فوق‌العاده! شما برنده **۳,۰۰۰ سکه** شدید! (شانس ۲٪)";
-      } else if (randVal <= 32) {
-        prizeCoins = 500;
-        uData.coins += prizeCoins;
-        prizeText = "🎁 عالی! شما برنده **۵۰۰ سکه** شدید! (شانس ۳۰٪)";
-      } else {
-        prizeText = "💔 پوچ! متأسفانه این بار چیزی برنده نشدید.";
-      }
-
-      await saveGlobalConfig(env, cfg);
-      const displayCoins = (userId === OWNER_ID) ? "♾ (بینهایت)" : uData.coins;
-      const resMsg = "🎡 **نتیجه چرخش گردونه:**\n\n" + prizeText + "\n💰 موجودی جدید شما: **" + displayCoins + "** سکه";
-      return await sendMessage(chatId, resMsg, msg.message_id);
-    }
-
-    if (text.startsWith("انتقال ")) {
-      const parts = text.replace("انتقال ", "").trim().split(/\s+/);
-      const targetUserId = parts[0];
-      const secondParam = parts[1];
-
-      if (!targetUserId || !secondParam) {
-        return await sendMessage(chatId, "❌ فرمت دستور اشتباه است.\nمثال انتقال هدیه: `انتقال [آیدی_عددی] [ایموجی_هدیه]`\nمثال انتقال سکه: `انتقال [آیدی_عددی] [تعداد_سکه]`", msg.message_id);
-      }
-
-      if (!isNaN(secondParam)) {
-        const amount = parseInt(secondParam);
-        if (amount <= 0) {
-          return await sendMessage(chatId, "❌ مقدار سکه باید بیشتر از صفر باشد.", msg.message_id);
-        }
-
-        let senderData = getUserData(cfg, userId);
-        if (userId !== OWNER_ID && senderData.coins < amount) {
-          return await sendMessage(chatId, "❌ موجودی سکه شما برای این انتقال کافی نیست!\nموجودی فعلی: " + senderData.coins, msg.message_id);
-        }
-
-        if (userId !== OWNER_ID) {
-          senderData.coins -= amount;
-        }
-
-        let targetData = getUserData(cfg, targetUserId);
-        targetData.coins += amount;
-        await saveGlobalConfig(env, cfg);
-
-        await sendMessage(targetUserId, "🎁 کاربر [" + msg.from.first_name + "](tg://user?id=" + userId + ") تعداد **" + amount + "** سکه به شما انتقال داد!\n🪙 موجودی جدید: " + targetData.coins).catch(() => {});
-        return await sendMessage(chatId, "✅ تعداد **" + amount + "** سکه با موفقیت به کاربر `" + targetUserId + "` انتقال یافت.", msg.message_id);
-      } else {
-        const giftEmoji = secondParam;
-        let senderData = getUserData(cfg, userId);
-        const giftIndex = senderData.gifts.indexOf(giftEmoji);
-
-        if (giftIndex === -1 && userId !== OWNER_ID) {
-          return await sendMessage(chatId, "❌ شما این هدیه را در پروفایل خود ندارید!", msg.message_id);
-        }
-
-        if (userId !== OWNER_ID) {
-          senderData.gifts.splice(giftIndex, 1);
-        }
-
-        let targetData = getUserData(cfg, targetUserId);
-        targetData.gifts.push(giftEmoji);
-        await saveGlobalConfig(env, cfg);
-
-        await sendMessage(targetUserId, "🎁 کاربر [" + msg.from.first_name + "](tg://user?id=" + userId + ") هدیه **" + giftEmoji + "** را به بخش هدایای پروفایل شما انتقال داد!").catch(() => {});
-        return await sendMessage(chatId, "✅ هدیه **" + giftEmoji + "** با موفقیت به بخش هدایای کاربر `" + targetUserId + "` انتقال یافت.", msg.message_id);
-      }
-    }
-
-    if (text === "سازنده") {
-      const channelUsername = DEFAULT_CHANNEL.replace("@", "");
-      const devMarkup = {
-        inline_keyboard: [
-          [{ text: "👤 سازنده", url: "https://t.me/kiarash1792" }],
-          [{ text: "📢 چنل ربات", url: "https://t.me/" + channelUsername }]
-        ]
-      };
-      return await sendMessage(chatId, "⚙️ **اطلاعات سازنده و کانال رسمی ربات:**", msg.message_id, devMarkup);
-    }
-
-    if (text.startsWith("مخفی ") && msg.reply_to_message) {
-      const secretText = text.replace("مخفی ", "").trim();
-      if (secretText) {
+    if (text.startsWith("پیام @")) {
+      const parts = text.split(" ");
+      if (parts.length >= 3) {
+        const targetUser = parts[1];
+        const secretContent = parts.slice(2).join(" ");
         await tgCall("deleteMessage", { chat_id: chatId, message_id: msg.message_id });
-        const sentSec = await sendMessage(chatId, secretText, msg.reply_to_message.message_id);
-        if (sentSec.ok && sentSec.result && sentSec.result.message_id) {
-          setTimeout(async () => {
-            await tgCall("deleteMessage", { chat_id: chatId, message_id: sentSec.result.message_id });
-          }, 0);
-        }
-        return;
-      }
-    }
-
-    if (text.startsWith("پیام ")) {
-      const match = text.match(/^پیام\s+@?([a-zA-Z0-9_]+)\s+(.+)$/s);
-      if (match) {
-        const targetUser = match[1].toLowerCase();
-        const msgContent = match[2].trim();
-        const secretKey = Date.now().toString() + "_" + Math.floor(Math.random() * 1000);
-
+        
+        const secretKey = Date.now() + "_" + Math.floor(Math.random() * 10000);
         if (env && env.BOT_KV) {
-          await env.BOT_KV.put("secret:" + secretKey, msgContent, { expirationTtl: 86400 });
+          await env.BOT_KV.put("secret:" + secretKey, secretContent);
         }
 
-        await tgCall("deleteMessage", { chat_id: chatId, message_id: msg.message_id });
-
-        const secretBtn = {
-          inline_keyboard: [[
-            { text: "🔒 برای بازکردن پیام کلیک کنید", callback_data: "secret_" + targetUser + "_" + secretKey }
-          ]]
+        const inlineMarkup = {
+          inline_keyboard: [[{ text: "📩 نمایش پیام", callback_data: "secret_" + targetUser.replace("@", "") + "_" + secretKey }]]
         };
-
-        const sentMsg = await sendMessage(chatId, "📩 **یک پیام مخفی برای @" + targetUser + " ارسال شد!**", null, secretBtn);
-        if (sentMsg.ok && sentMsg.result && sentMsg.result.message_id) {
-          setTimeout(async () => {
-            await tgCall("deleteMessage", { chat_id: chatId, message_id: sentMsg.result.message_id });
-          }, 0);
-        }
-        return;
+        return await sendMessage(chatId, "🤫 یک پیام مخفی برای " + targetUser + " ارسال شد!", null, inlineMarkup);
       }
     }
 
-    if (text === "قوانین") {
-      const rulesStr = (g.rules && g.rules.trim() !== "") ? g.rules : "قوانینی ثبت نشده است.";
-      return await sendMessage(chatId, "📜 **قوانین گروه:**\n\n" + rulesStr, msg.message_id);
+    if (text === "ثبت اصل" && msg.reply_to_message) {
+      if (!userIsAdmin) return await sendMessage(chatId, "شما دسترسی ندارید.", msg.message_id);
+      g.saved_asl = msg.reply_to_message.text || "";
+      await saveGroupData(env, chatId, g);
+      return await sendMessage(chatId, "اصل ثبت شد.", msg.message_id);
     }
 
-    if (text === "راهنما" || text === "/help") {
-      if (!userIsAdmin) return await sendMessage(chatId, "❌ این دستور فقط برای مدیران و مالک گروه فعال است.", msg.message_id);
-      return await sendMessage(chatId, getHelpText("main"), msg.message_id, getHelpKeyboard("main"));
+    if (text === "حذف اصل") {
+      if (!userIsAdmin) return await sendMessage(chatId, "شما دسترسی ندارید.", msg.message_id);
+      g.saved_asl = null;
+      await saveGroupData(env, chatId, g);
+      return await sendMessage(chatId, "اصل حذف شد.", msg.message_id);
     }
 
-    if (text === "اصل" && g.saved_asl) {
-      return await sendMessage(chatId, g.saved_asl, msg.message_id);
+    if (text === "اصل" || text === "اصل؟") {
+      if (g.saved_asl) {
+        return await sendMessage(chatId, g.saved_asl, msg.message_id);
+      } else {
+        return await sendMessage(chatId, "اصلی ثبت نشده است.", msg.message_id);
+      }
     }
 
-    if (text === "لینک ها" && g.saved_link) {
-      return await sendMessage(chatId, `لینک ثبت شده:\n${g.saved_link}`, msg.message_id);
+    if (text === "ثبت لینک اینجا" && msg.reply_to_message) {
+      if (!userIsAdmin) return await sendMessage(chatId, "شما دسترسی ندارید.", msg.message_id);
+      g.saved_link = msg.reply_to_message.text || "";
+      await saveGroupData(env, chatId, g);
+      return await sendMessage(chatId, "لینک ثبت شد.", msg.message_id);
+    }
+
+    if (text === "حذف لینک اینجا") {
+      if (!userIsAdmin) return await sendMessage(chatId, "شما دسترسی ندارید.", msg.message_id);
+      g.saved_link = null;
+      await saveGroupData(env, chatId, g);
+      return await sendMessage(chatId, "لینک حذف شد.", msg.message_id);
+    }
+
+    if (text === "لینک" || text === "لینک ها") {
+      if (g.saved_link) {
+        return await sendMessage(chatId, g.saved_link, msg.message_id);
+      } else {
+        return await sendMessage(chatId, "لینکی ثبت نشده است.", msg.message_id);
+      }
     }
 
     if (userIsAdmin) {
-      if (text === "ثبت اصل" && msg.reply_to_message) {
-        const replyText = msg.reply_to_message.text || msg.reply_to_message.caption || "";
-        g.saved_asl = replyText;
-        await saveGroupData(env, chatId, g);
-        return await sendMessage(chatId, "✅ اصل با موفقیت ثبت شد.", msg.message_id);
-      }
-
-      if (text === "حذف اصل") {
-        g.saved_asl = null;
-        await saveGroupData(env, chatId, g);
-        return await sendMessage(chatId, "✅ اصل ثبت‌شده حذف شد.", msg.message_id);
-      }
-
-      if (text.startsWith("ثبت لینک اینجا ")) {
-        const linkVal = text.replace("ثبت لینک اینجا ", "").trim();
-        g.saved_link = linkVal;
-        await saveGroupData(env, chatId, g);
-        return await sendMessage(chatId, "✅ لینک مورد نظر با موفقیت ثبت شد.", msg.message_id);
-      }
-
-      if (text.startsWith("حذف لینک اینجا ")) {
-        g.saved_link = null;
-        await saveGroupData(env, chatId, g);
-        return await sendMessage(chatId, "✅ لینک ثبت‌شده حذف شد.", msg.message_id);
-      }
-
-      if (text.startsWith("تنظیم عضویت اجباری ")) {
-        const chName = text.replace("تنظیم عضویت اجباری ", "").trim();
-        if (!chName) return await sendMessage(chatId, "❌ لطفاً یوزرنیم کانال را وارد کنید.", msg.message_id);
-        
-        if (!g.forced_channels) g.forced_channels = [];
-        if (g.forced_channels.length >= 10) {
-          return await sendMessage(chatId, "❌ حداکثر می‌توان ۱۰ کانال برای عضویت اجباری ثبت کرد.", msg.message_id);
-        }
-
-        const formattedCh = chName.startsWith("@") ? chName : "@" + chName;
-        if (!g.forced_channels.includes(formattedCh)) {
-          g.forced_channels.push(formattedCh);
-          await saveGroupData(env, chatId, g);
-        }
-        return await sendMessage(chatId, `✅ کانال **${formattedCh}** با موفقیت به لیست عضویت اجباری اضافه شد.\nتعداد کل کانال‌ها: ${g.forced_channels.length}`, msg.message_id);
-      }
-
-      if (text.startsWith("حذف عضویت اجباری ")) {
-        const chName = text.replace("حذف عضویت اجباری ", "").trim();
-        const formattedCh = chName.startsWith("@") ? chName : "@" + chName;
-        
-        g.forced_channels = (g.forced_channels || []).filter(c => c !== formattedCh);
-        await saveGroupData(env, chatId, g);
-        return await sendMessage(chatId, `✅ کانال **${formattedCh}** از لیست عضویت اجباری حذف شد.`, msg.message_id);
-      }
-
-      if (text === "لیست عضویت اجباری" || text === "لیست کانال ها") {
-        const channels = g.forced_channels || [];
-        if (channels.length === 0) return await sendMessage(chatId, "هیچ کانالی برای عضویت اجباری تنظیم نشده است.", msg.message_id);
-        
-        let listStr = "📢 **لیست کانال‌های عضویت اجباری:**\n\n";
-        channels.forEach((c, idx) => {
-          listStr += `${idx + 1}. \`${c}\`\n`;
-        });
-        return await sendMessage(chatId, listStr, msg.message_id);
-      }
-
       if (text.startsWith("فیلتر ")) {
-        const word = text.replace("فیلتر ", "").trim();
-        if (!word) return;
-
-        g.filtered_words[word] = { type: "delete" };
-        await saveGroupData(env, chatId, g);
-        return await sendMessage(chatId, "✅ کلمه **" + word + "** با موفقیت فیلتر شد.", msg.message_id);
+        const filterWord = text.replace("فیلتر ", "").trim();
+        if (filterWord) {
+          g.filtered_words[filterWord] = true;
+          await saveGroupData(env, chatId, g);
+          return await sendMessage(chatId, `✅ کلمه **${filterWord}** به لیست فیلتر اضافه شد.`, msg.message_id);
+        }
       }
 
       if (text.startsWith("حذف فیلتر ")) {
-        const word = text.replace("حذف فیلتر ", "").trim();
-        if (g.filtered_words[word]) {
-          delete g.filtered_words[word];
+        const filterWord = text.replace("حذف فیلتر ", "").trim();
+        if (filterWord && g.filtered_words[filterWord]) {
+          delete g.filtered_words[filterWord];
           await saveGroupData(env, chatId, g);
-          return await sendMessage(chatId, "✅ کلمه **" + word + "** از لیست فیلتر کلمات پاک شد.", msg.message_id);
-        }
-        return await sendMessage(chatId, "این کلمه در لیست فیلتر وجود ندارد.", msg.message_id);
-      }
-
-      if (text === "لیست فیلتر" || text === "لیست فیلتر کلمات") {
-        let fList = "📝 **لیست کلمات فیلتر شده:**\n\n";
-        const keys = Object.keys(g.filtered_words || {});
-        if (keys.length === 0) return await sendMessage(chatId, "هیچ کلمه‌ای فیلتر نشده است.", msg.message_id);
-        
-        keys.forEach((w, idx) => {
-          fList += (idx + 1) + ". `" + w + "`\n";
-        });
-        return await sendMessage(chatId, fList, msg.message_id);
-      }
-
-      if (text === "قفل گروه" || text.startsWith("قفل گروه ")) {
-        const param = text.replace("قفل گروه", "").trim();
-        if (!param) {
-          g.group_lock_until = Date.now() + 365 * 24 * 60 * 60 * 1000;
-          await saveGroupData(env, chatId, g);
-          await tgCall("setChatPermissions", { chat_id: chatId, permissions: { can_send_messages: false } });
-          return await sendMessage(chatId, "🔒 **گروه کاملاً قفل شد.**", msg.message_id);
-        }
-        const hours = parseFloat(param);
-        if (!isNaN(hours) && hours > 0) {
-          const lockDuration = hours * 60 * 60 * 1000;
-          g.group_lock_until = Date.now() + lockDuration;
-          await saveGroupData(env, chatId, g);
-          await tgCall("setChatPermissions", { chat_id: chatId, permissions: { can_send_messages: false } });
-          return await sendMessage(chatId, "🔒 **گروه به مدت " + hours + " ساعت قفل شد.**", msg.message_id);
+          return await sendMessage(chatId, `✅ کلمه **${filterWord}** از لیست فیلتر حذف شد.`, msg.message_id);
         }
       }
 
-      if (text === "بازکردن گروه" || text === "حذف قفل گروه") {
-        g.group_lock_until = null;
-        await saveGroupData(env, chatId, g);
-        await tgCall("setChatPermissions", {
-          chat_id: chatId,
-          permissions: { can_send_messages: true, can_send_media_messages: true, can_send_other_messages: true }
-        });
-        return await sendMessage(chatId, "🔓 **قفل گروه برداشته شد.**", msg.message_id);
+      if (text === "لیست فیلتر") {
+        const wordList = Object.keys(g.filtered_words);
+        if (wordList.length === 0) {
+          return await sendMessage(chatId, "📋 لیست فیلتر خالی است.", msg.message_id);
+        }
+        let listText = "📋 **کلمات فیلتر شده:**\n\n";
+        wordList.forEach((w, idx) => { listText += (idx + 1) + ". `" + w + "`\n"; });
+        return await sendMessage(chatId, listText, msg.message_id);
       }
 
-      if (text.startsWith("تنظیم اسپم ")) {
-        const val = text.replace("تنظیم اسپم ", "").trim();
-        if (val === "غیرفعال") {
+      if (text.startsWith("تنظیم اسپم ") || text.startsWith("اسپم ")) {
+        const valStr = text.replace("تنظیم اسپم ", "").replace("اسپم ", "").trim();
+        if (valStr === "غیرفعال") {
           g.spam_limit = 0;
           await saveGroupData(env, chatId, g);
-          return await sendMessage(chatId, "🚫 **سیستم آنتی اسپم غیرفعال شد.**", msg.message_id);
+          return await sendMessage(chatId, "✅ قفل اسپم غیرفعال شد.", msg.message_id);
         }
-        const num = parseInt(val);
-        if (!isNaN(num) && num > 0) {
-          g.spam_limit = num;
+        const val = parseInt(valStr);
+        if (!isNaN(val) && val > 0) {
+          g.spam_limit = val;
           await saveGroupData(env, chatId, g);
-          return await sendMessage(chatId, "⚙️ حد مجاز پیام متوالی اسپم روی **" + num + " پیام در ۵ ثانیه** تنظیم شد.", msg.message_id);
+          return await sendMessage(chatId, "✅ حد مجاز اسپم به **" + val + "** پیام در ۵ ثانیه تغییر یافت.", msg.message_id);
         }
       }
 
       if (text.startsWith("تنظیم مجازات اسپم ")) {
-        const parts = text.replace("تنظیم مجازات اسپم ", "").trim().split(/\s+/);
-        const type = parts[0];
-        const time = parts[1] ? parseInt(parts[1]) : 5;
-
-        if (type === "بن") {
-          g.spam_action = { type: "ban" };
+        const parts = text.replace("تنظیم مجازات اسپم ", "").trim().split(" ");
+        const actType = parts[0];
+        const mins = parts[1] ? parseInt(parts[1]) : 5;
+        if (actType === "سکوت") {
+          g.spam_action = { type: "mute", minutes: mins };
           await saveGroupData(env, chatId, g);
-          return await sendMessage(chatId, "⚙️ مجازات اسپم روی **بن (اخراج)** تنظیم شد.", msg.message_id);
-        } else if (type === "اخطار") {
-          g.spam_action = { type: "warn" };
+          return await sendMessage(chatId, "✅ مجازات اسپم به **سکوت (" + mins + " دقیقه)** تغییر یافت.", msg.message_id);
+        } else if (actType === "بن") {
+          g.spam_action = { type: "ban", minutes: 0 };
           await saveGroupData(env, chatId, g);
-          return await sendMessage(chatId, "⚙️ مجازات اسپم روی **ثبت اخطار** تنظیم شد.", msg.message_id);
-        } else if (type === "سکوت") {
-          g.spam_action = { type: "mute", minutes: time };
+          return await sendMessage(chatId, "✅ مجازات اسپم به **بن (اخراج)** تغییر یافت.", msg.message_id);
+        } else if (actType === "اخطار") {
+          g.spam_action = { type: "warn", minutes: 0 };
           await saveGroupData(env, chatId, g);
-          return await sendMessage(chatId, "⚙️ مجازات اسپم روی **" + time + " دقیقه سکوت** تنظیم شد.", msg.message_id);
+          return await sendMessage(chatId, "✅ مجازات اسپم به **اخطار** تغییر یافت.", msg.message_id);
         }
+      }
+
+      if (text.startsWith("اد اجباری ") || text.startsWith("تنظیم اد ")) {
+        const valStr = text.replace("اد اجباری ", "").replace("تنظیم اد ", "").trim();
+        if (valStr === "غیرفعال") {
+          g.req_adds = 0;
+          await saveGroupData(env, chatId, g);
+          return await sendMessage(chatId, "✅ اد اجباری غیرفعال شد.", msg.message_id);
+        }
+        const val = parseInt(valStr);
+        if (!isNaN(val) && val >= 0) {
+          g.req_adds = val;
+          await saveGroupData(env, chatId, g);
+          return await sendMessage(chatId, "✅ تعداد اد اجباری به **" + val + "** نفر تغییر یافت.", msg.message_id);
+        }
+      }
+
+      if (text.startsWith("تنظیم عضویت اجباری ")) {
+        const channelName = text.replace("تنظیم عضویت اجباری ", "").trim();
+        if (channelName.startsWith("@")) {
+          if (!g.forced_channels) g.forced_channels = [];
+          if (!g.forced_channels.includes(channelName)) {
+            g.forced_channels.push(channelName);
+            await saveGroupData(env, chatId, g);
+          }
+          return await sendMessage(chatId, "✅ کانال **" + channelName + "** به لیست قفل عضویت اضافه شد.", msg.message_id);
+        }
+      }
+
+      if (text.startsWith("حذف عضویت اجباری ")) {
+        const channelName = text.replace("حذف عضویت اجباری ", "").trim();
+        if (g.forced_channels) {
+          g.forced_channels = g.forced_channels.filter(ch => ch !== channelName);
+          await saveGroupData(env, chatId, g);
+        }
+        return await sendMessage(chatId, "✅ کانال **" + channelName + "** از لیست قفل عضویت حذف شد.", msg.message_id);
+      }
+
+      if (text === "لیست عضویت اجباری") {
+        const channels = g.forced_channels || [];
+        if (channels.length === 0) {
+          return await sendMessage(chatId, "📋 هیچ کانالی برای قفل عضویت ثبت نشده است.", msg.message_id);
+        }
+        let listText = "📋 **لیست کانال‌های عضویت اجباری:**\n\n";
+        channels.forEach((ch, idx) => { listText += (idx + 1) + ". " + ch + "\n"; });
+        return await sendMessage(chatId, listText, msg.message_id);
+      }
+
+      if (text.startsWith("حذف پیام ")) {
+        const numStr = text.replace("حذف پیام ", "").trim();
+        const count = parseInt(numStr);
+        if (!isNaN(count) && count > 0 && count <= 100) {
+          const currentMsgId = msg.message_id;
+          for (let i = 0; i < count; i++) {
+            await tgCall("deleteMessage", { chat_id: chatId, message_id: currentMsgId - i });
+          }
+          const delNotify = await sendMessage(chatId, "🗑 **تعداد " + count + " پیام اخیر با موفقیت حذف شدند.**");
+          if (delNotify.ok && delNotify.result && delNotify.result.message_id) {
+            setTimeout(async () => {
+              await tgCall("deleteMessage", { chat_id: chatId, message_id: delNotify.result.message_id });
+            }, 3000);
+          }
+          return;
+        }
+      }
+
+      if (text.startsWith("تنظیم مدیر") && msg.reply_to_message) {
+        const targetId = String(msg.reply_to_message.from.id);
+        if (!g.admins.includes(targetId)) {
+          g.admins.push(targetId);
+          await saveGroupData(env, chatId, g);
+        }
+        return await sendMessage(chatId, "✅ کاربر [" + msg.reply_to_message.from.first_name + "](tg://user?id=" + targetId + ") به مدیران گروه اضافه شد.", msg.message_id);
+      }
+
+      if (text.startsWith("حذف مدیر") && msg.reply_to_message) {
+        const targetId = String(msg.reply_to_message.from.id);
+        g.admins = g.admins.filter(a => String(a) !== targetId);
+        await saveGroupData(env, chatId, g);
+        return await sendMessage(chatId, "✅ کاربر [" + msg.reply_to_message.from.first_name + "](tg://user?id=" + targetId + ") از مدیران گروه حذف شد.", msg.message_id);
+      }
+
+      if (text === "لیست مدیرها" || text === "مدیران") {
+        let adminListText = "👮‍♂️ **لیست مدیران گروه:**\n\n";
+        adminListText += "👑 مالک: [" + (g.adder_id || OWNER_ID) + "](tg://user?id=" + (g.adder_id || OWNER_ID) + ")\n";
+        g.admins.forEach((adm, idx) => {
+          adminListText += (idx + 1) + ". [" + adm + "](tg://user?id=" + adm + ")\n";
+        });
+        return await sendMessage(chatId, adminListText, msg.message_id);
       }
 
       if (text === "پین" && msg.reply_to_message) {
@@ -1614,56 +1327,86 @@ async function handleUpdate(update, env) {
         return await sendMessage(chatId, "📌 پیام با موفقیت سنجاق شد.", msg.message_id);
       }
 
-      if (text === "انپین") {
+      if (text === "انپین" || text === "آنپین") {
         await tgCall("unpinChatMessage", { chat_id: chatId });
-        return await sendMessage(chatId, "📌 پیام سنجاق‌شده برداشته شد.", msg.message_id);
+        return await sendMessage(chatId, "📌 پیام از سنجاق خارج شد.", msg.message_id);
+      }
+
+      if (text.startsWith("تنظیم خوشامد ")) {
+        g.welcome_text = text.replace("تنظیم خوشامد ", "").trim();
+        await saveGroupData(env, chatId, g);
+        return await sendMessage(chatId, "✅ متن خوشامدگویی با موفقیت آپدیت شد.", msg.message_id);
+      }
+
+      if (text.startsWith("تنظیم قوانین ")) {
+        g.rules = text.replace("تنظیم قوانین ", "").trim();
+        await saveGroupData(env, chatId, g);
+        return await sendMessage(chatId, "✅ قوانین گروه آپدیت شد.", msg.message_id);
+      }
+
+      if (text === "قوانین") {
+        const rulesText = (g.rules && g.rules.trim() !== "") ? g.rules : "قوانینی ثبت نشده است.";
+        return await sendMessage(chatId, "📜 **قوانین گروه:**\n\n" + rulesText, msg.message_id);
+      }
+
+      if (text.startsWith("تنظیم لقب ") && msg.reply_to_message) {
+        const nick = text.replace("تنظیم لقب ", "").trim();
+        const targetId = String(msg.reply_to_message.from.id);
+        g.nicknames[targetId] = nick;
+        await saveGroupData(env, chatId, g);
+        return await sendMessage(chatId, "✅ لقب کاربر به **" + nick + "** تغییر یافت.", msg.message_id);
+      }
+
+      if (text === "حذف لقب" && msg.reply_to_message) {
+        const targetId = String(msg.reply_to_message.from.id);
+        delete g.nicknames[targetId];
+        await saveGroupData(env, chatId, g);
+        return await sendMessage(chatId, "✅ لقب کاربر حذف شد.", msg.message_id);
+      }
+
+      if (text === "لقب") {
+        const targetId = msg.reply_to_message ? String(msg.reply_to_message.from.id) : userId;
+        const nick = g.nicknames[targetId] || "لقبی ثبت نشده است.";
+        return await sendMessage(chatId, "🏷 **لقب کاربر:** " + nick, msg.message_id);
       }
 
       if (text === "اخطار" && msg.reply_to_message) {
-        const target = msg.reply_to_message.from;
-        const targetAdmin = await isAdmin(env, chatId, target.id);
-        if (targetAdmin) return await sendMessage(chatId, "❌ نمی‌توان به مدیران اخطار داد.", msg.message_id);
+        const targetId = String(msg.reply_to_message.from.id);
+        const currentWarns = (g.warns[targetId] || 0) + 1;
+        g.warns[targetId] = currentWarns;
+        await saveGroupData(env, chatId, g);
 
         const maxW = g.max_warns || 3;
-        const currentWarns = (g.warns[target.id] || 0) + 1;
-        g.warns[target.id] = currentWarns;
-
         if (currentWarns >= maxW) {
-          g.warns[target.id] = 0;
+          g.warns[targetId] = 0;
           await saveGroupData(env, chatId, g);
-
           if (g.warn_action === "ban") {
-            await tgCall("banChatMember", { chat_id: chatId, user_id: target.id });
-            return await sendMessage(chatId, "⚠️ کاربر [" + target.first_name + "](tg://user?id=" + target.id + ") به دلیل دریافت **" + maxW + "** اخطار، اخراج شد.", msg.message_id);
+            await tgCall("banChatMember", { chat_id: chatId, user_id: targetId });
+            return await sendMessage(chatId, "⚠️ کاربر [" + msg.reply_to_message.from.first_name + "](tg://user?id=" + targetId + ") به دلیل دریافت حداکثر اخطار (" + maxW + ") اخراج شد.");
           } else {
             const expireTime = Date.now() + 60 * 60 * 1000;
-            g.muted_users[target.id] = expireTime;
+            g.muted_users[targetId] = expireTime;
             await saveGroupData(env, chatId, g);
-            await tgCall("restrictChatMember", { chat_id: chatId, user_id: target.id, permissions: { can_send_messages: false }, until_date: Math.floor(expireTime / 1000) });
-            return await sendMessage(chatId, "⚠️ کاربر [" + target.first_name + "](tg://user?id=" + target.id + ") به دلیل دریافت **" + maxW + "** اخطار، به مدت ۱ ساعت مسدود شد.", msg.message_id);
+            await tgCall("restrictChatMember", { chat_id: chatId, user_id: targetId, permissions: { can_send_messages: false }, until_date: Math.floor(expireTime / 1000) });
+            return await sendMessage(chatId, "🔇 کاربر [" + msg.reply_to_message.from.first_name + "](tg://user?id=" + targetId + ") به دلیل دریافت حداکثر اخطار (" + maxW + ") به مدت **۱ ساعت** مسدود شد.");
           }
-        } else {
-          await saveGroupData(env, chatId, g);
-          return await sendMessage(chatId, "⚠️ کاربر [" + target.first_name + "](tg://user?id=" + target.id + ") یک اخطار دریافت کرد.\nتعداد اخطارها: **" + currentWarns + " از " + maxW + "**", msg.message_id);
         }
+        return await sendMessage(chatId, "⚠️ کاربر [" + msg.reply_to_message.from.first_name + "](tg://user?id=" + targetId + ") یک اخطار دریافت کرد. (" + currentWarns + "/" + maxW + ")", msg.message_id);
       }
 
       if (text === "حذف اخطار" && msg.reply_to_message) {
-        const target = msg.reply_to_message.from;
-        if (g.warns[target.id] && g.warns[target.id] > 0) {
-          g.warns[target.id] -= 1;
-          await saveGroupData(env, chatId, g);
-          return await sendMessage(chatId, "✅ یک اخطار از کاربر [" + target.first_name + "](tg://user?id=" + target.id + ") کسر شد.", msg.message_id);
-        }
-        return await sendMessage(chatId, "این کاربر هیچ اخطاری ندارد.", msg.message_id);
+        const targetId = String(msg.reply_to_message.from.id);
+        g.warns[targetId] = 0;
+        await saveGroupData(env, chatId, g);
+        return await sendMessage(chatId, "✅ اخطارهای کاربر [" + msg.reply_to_message.from.first_name + "](tg://user?id=" + targetId + ") صفر شد.", msg.message_id);
       }
 
       if (text.startsWith("تنظیم حداکثر اخطار ")) {
-        const num = parseInt(text.replace("تنظیم حداکثر اخطار ", "").trim());
-        if (!isNaN(num) && num > 0) {
-          g.max_warns = num;
+        const val = parseInt(text.replace("تنظیم حداکثر اخطار ", "").trim());
+        if (!isNaN(val) && val > 0) {
+          g.max_warns = val;
           await saveGroupData(env, chatId, g);
-          return await sendMessage(chatId, "⚙️ حد مجاز اخطارها روی **" + num + "** تنظیم شد.", msg.message_id);
+          return await sendMessage(chatId, "✅ حداکثر اخطار به **" + val + "** تغییر یافت.", msg.message_id);
         }
       }
 
@@ -1672,259 +1415,135 @@ async function handleUpdate(update, env) {
         if (act === "بن" || act === "سکوت") {
           g.warn_action = act === "بن" ? "ban" : "mute";
           await saveGroupData(env, chatId, g);
-          return await sendMessage(chatId, "⚙️ مجازات رسیدن اخطارها به حد مجاز روی **" + act + "** تنظیم شد.", msg.message_id);
+          return await sendMessage(chatId, "✅ مجازات حداکثر اخطار به **" + act + "** تغییر یافت.", msg.message_id);
         }
       }
 
-      if (text.startsWith("تنظیم خوشامد ")) {
-        g.welcome_text = text.replace("تنظیم خوشامد ", "").trim();
+      if (text.startsWith("سکوت") && msg.reply_to_message) {
+        const targetId = String(msg.reply_to_message.from.id);
+        const parts = text.split(" ");
+        let mins = 0;
+        if (parts.length > 1) mins = parseInt(parts[1]) || 0;
+
+        const expireTime = mins > 0 ? Date.now() + mins * 60 * 1000 : "perm";
+        g.muted_users[targetId] = expireTime;
         await saveGroupData(env, chatId, g);
-        return await sendMessage(chatId, "✅ متن خوشامدگویی جدید با موفقیت ذخیره شد.", msg.message_id);
-      }
 
-      if ((text === "سکوت" || text.startsWith("سکوت ") || text === "خالی" || text.startsWith("خالی") || text === "خفه") && msg.reply_to_message) {
-        const target = msg.reply_to_message.from;
-        const targetAdmin = await isAdmin(env, chatId, target.id);
-        if (targetAdmin) return await sendMessage(chatId, "❌ نمی‌توان مدیران گروه را سکوت کرد.", msg.message_id);
+        const untilDateParam = mins > 0 ? Math.floor(expireTime / 1000) : 0;
+        await tgCall("restrictChatMember", { chat_id: chatId, user_id: targetId, permissions: { can_send_messages: false }, until_date: untilDateParam });
 
-        const param = text.replace("سکوت", "").replace("خالی", "").replace("خفه", "").trim();
-        if (!param) {
-          g.muted_users[target.id] = "perm";
-          await saveGroupData(env, chatId, g);
-          await tgCall("restrictChatMember", {
-            chat_id: chatId,
-            user_id: target.id,
-            permissions: { can_send_messages: false }
-          });
-          return await sendMessage(chatId, "🔇 کاربر [ " + target.first_name + " ](tg://user?id=" + target.id + ") با آیدی `" + target.id + "` به صورت دائمی سکوت شد.", msg.message_id);
-        } else {
-          const minutes = parseInt(param);
-          if (!isNaN(minutes) && minutes > 0) {
-            const expireTime = Date.now() + minutes * 60 * 1000;
-            g.muted_users[target.id] = expireTime;
-            await saveGroupData(env, chatId, g);
-
-            await tgCall("restrictChatMember", {
-              chat_id: chatId,
-              user_id: target.id,
-              permissions: { can_send_messages: false },
-              until_date: Math.floor(expireTime / 1000)
-            });
-
-            return await sendMessage(chatId, "🔇 کاربر [ " + target.first_name + " ](tg://user?id=" + target.id + ") با آیدی `" + target.id + "` به مدت " + minutes + " دقیقه مسدود شد.", msg.message_id);
-          }
-        }
+        const timeText = mins > 0 ? "به مدت **" + mins + " دقیقه**" : "به صورت **دائمی**";
+        return await sendMessage(chatId, "🔇 کاربر [" + msg.reply_to_message.from.first_name + "](tg://user?id=" + targetId + ") " + timeText + " مسدود شد.", msg.message_id);
       }
 
       if (text === "حذف سکوت" && msg.reply_to_message) {
-        const target = msg.reply_to_message.from;
-        delete g.muted_users[target.id];
+        const targetId = String(msg.reply_to_message.from.id);
+        delete g.muted_users[targetId];
         await saveGroupData(env, chatId, g);
-
-        await tgCall("restrictChatMember", {
-          chat_id: chatId,
-          user_id: target.id,
-          permissions: { can_send_messages: true, can_send_media_messages: true, can_send_other_messages: true }
-        });
-
-        return await sendMessage(chatId, "🔊 محدودیت ارسال پیام برای [ " + target.first_name + " ](tg://user?id=" + target.id + ") برداشته شد.", msg.message_id);
-      }
-
-      if (text.startsWith("قفل ") || text.startsWith("بازکردن ")) {
-        const isLock = text.startsWith("قفل ");
-        const type = text.replace("قفل ", "").replace("بازکردن ", "").trim();
-
-        if (type === "عکس") {
-          g.locks.photo = isLock;
-          await saveGroupData(env, chatId, g);
-          return await sendMessage(chatId, "🔐 قفل ارسال عکس **" + (isLock ? "فعال" : "غیرفعال") + "** شد.", msg.message_id);
-        }
-
-        if (type === "گیف" || type === "استیکر") {
-          g.locks.sticker = isLock;
-          g.locks.animation = isLock;
-          await saveGroupData(env, chatId, g);
-          return await sendMessage(chatId, "🔐 قفل استیکر و گیف **" + (isLock ? "فعال" : "غیرفعال") + "** شد.", msg.message_id);
-        }
-
-        if (type === "مکان") {
-          g.locks.location = isLock;
-          await saveGroupData(env, chatId, g);
-          return await sendMessage(chatId, "🔐 قفل ارسال مکان **" + (isLock ? "فعال" : "غیرفعال") + "** شد.", msg.message_id);
-        }
-
-        if (type === "لینک") {
-          g.locks.link = isLock;
-          await saveGroupData(env, chatId, g);
-          return await sendMessage(chatId, "🔐 قفل ارسال لینک **" + (isLock ? "فعال" : "غیرفعال") + "** شد.", msg.message_id);
-        }
-
-        if (type === "ایدی") {
-          g.locks.username = isLock;
-          await saveGroupData(env, chatId, g);
-          return await sendMessage(chatId, "🔐 قفل ارسال آیدی/تگ **" + (isLock ? "فعال" : "غیرفعال") + "** شد.", msg.message_id);
-        }
-
-        if (type === "فروارد") {
-          g.locks.forward = isLock;
-          await saveGroupData(env, chatId, g);
-          return await sendMessage(chatId, "🔐 قفل فروارد **" + (isLock ? "فعال" : "غیرفعال") + "** شد.", msg.message_id);
-        }
-
-        if (type === "فارسی") {
-          g.locks.persian = isLock;
-          await saveGroupData(env, chatId, g);
-          return await sendMessage(chatId, "🔐 قفل فارسی **" + (isLock ? "فعال" : "غیرفعال") + "** شد.", msg.message_id);
-        }
-
-        if (type === "انگلیسی") {
-          g.locks.english = isLock;
-          await saveGroupData(env, chatId, g);
-          return await sendMessage(chatId, "🔐 قفل انگلیسی **" + (isLock ? "فعال" : "غیرفعال") + "** شد.", msg.message_id);
-        }
-
-        if (type === "ویرایش") {
-          g.locks.edit = isLock;
-          await saveGroupData(env, chatId, g);
-          return await sendMessage(chatId, "🔐 قفل ویرایش **" + (isLock ? "فعال" : "غیرفعال") + "** شد.", msg.message_id);
-        }
-
-        if (type === "هشتگ") {
-          g.locks.hashtag = isLock;
-          await saveGroupData(env, chatId, g);
-          return await sendMessage(chatId, "🔐 قفل هشتگ **" + (isLock ? "فعال" : "غیرفعال") + "** شد.", msg.message_id);
-        }
-
-        const map = { "فیلم": "video", "اهنگ": "audio" };
-        if (map[type]) {
-          g.locks[map[type]] = isLock;
-          await saveGroupData(env, chatId, g);
-          return await sendMessage(chatId, "🔐 قفل ( " + type + " ) " + (isLock ? "فعال" : "غیرفعال") + " شد.", msg.message_id);
-        }
-      }
-
-      if (text === "تنظیم مدیر" && msg.reply_to_message) {
-        const t = msg.reply_to_message.from;
-        if (!g.admins.includes(t.id)) g.admins.push(t.id);
-        await saveGroupData(env, chatId, g);
-        return await sendMessage(chatId, "› کاربر ( " + t.first_name + " ) ›› مدیر ربات شد.", msg.message_id);
-      }
-
-      if (text === "حذف مدیر" && msg.reply_to_message) {
-        const t = msg.reply_to_message.from;
-        g.admins = g.admins.filter(id => String(id) !== String(t.id));
-        await saveGroupData(env, chatId, g);
-        return await sendMessage(chatId, "› کاربر ( " + t.first_name + " ) ›› عزل شد.", msg.message_id);
-      }
-
-      if (text === "لیست مدیران" || text === "لیست مدیرها") {
-        let listStr = "⚙️ **لیست مدیران ربات:**\n\n";
-        for (const aId of g.admins) {
-          listStr += "▫️ [کاربر " + aId + "](tg://user?id=" + aId + ")\n";
-        }
-        return await sendMessage(chatId, listStr, msg.message_id);
-      }
-
-      if (text.startsWith("تنظیم قوانین ")) {
-        const newRules = text.replace("تنظیم قوانین ", "").trim();
-        g.rules = newRules;
-        await saveGroupData(env, chatId, g);
-        return await sendMessage(chatId, "✅ قوانین جدید گروه با موفقیت تنظیم شد.", msg.message_id);
-      }
-
-      if (text.startsWith("حذف پیام ")) {
-        const numStr = text.replace("حذف پیام ", "").trim();
-        const count = parseInt(numStr);
-        if (!isNaN(count) && count > 0) {
-          const startId = msg.message_id;
-          const limit = Math.min(count + 1, 100);
-          for (let i = 0; i < limit; i++) {
-            await tgCall("deleteMessage", { chat_id: chatId, message_id: startId - i });
-          }
-          return;
-        }
-      }
-
-      if (text.startsWith("حذف سکه ")) {
-        if (userId !== OWNER_ID) {
-          return await sendMessage(chatId, "❌ این دستور فقط مخصوص مالک اصلی ربات است.", msg.message_id);
-        }
-        const parts = text.replace("حذف سکه ", "").trim().split(/\s+/);
-        const targetUserId = parts[0];
-        const amount = parseInt(parts[1]);
-
-        if (!targetUserId || isNaN(amount)) {
-          return await sendMessage(chatId, "❌ فرمت دستور اشتباه است.\nمثال: `حذف سکه [آیدی_عددی] [تعداد_سکه]`", msg.message_id);
-        }
-
-        let targetData = getUserData(cfg, targetUserId);
-        targetData.coins = Math.max(0, targetData.coins - amount);
-        await saveGlobalConfig(env, cfg);
-
-        await sendMessage(targetUserId, "⚠️ مالک ربات تعداد **" + amount + "** سکه از شما حذف کرد.\n🪙 موجودی جدید: " + targetData.coins + " سکه").catch(() => {});
-        return await sendMessage(chatId, "✅ با موفقیت تعداد **" + amount + "** سکه از کاربر `" + targetUserId + "` حذف شد.\nموجودی جدید او: " + targetData.coins, msg.message_id);
-      }
-
-      if (text.startsWith("حذف هدیه ")) {
-        if (userId !== OWNER_ID) {
-          return await sendMessage(chatId, "❌ این دستور فقط مخصوص مالک اصلی ربات است.", msg.message_id);
-        }
-        const parts = text.replace("حذف هدیه ", "").trim().split(/\s+/);
-        const targetUserId = parts[0];
-        const giftEmoji = parts[1];
-
-        if (!targetUserId || !giftEmoji) {
-          return await sendMessage(chatId, "❌ فرمت دستور اشتباه است.\nمثال: `حذف هدیه [آیدی_عددی] [ایموجی_هدیه]`", msg.message_id);
-        }
-
-        let targetData = getUserData(cfg, targetUserId);
-        const giftIndex = targetData.gifts.indexOf(giftEmoji);
-
-        if (giftIndex === -1) {
-          return await sendMessage(chatId, "❌ این کاربر چنین هدیه‌ای ندارد.", msg.message_id);
-        }
-
-        targetData.gifts.splice(giftIndex, 1);
-        await saveGlobalConfig(env, cfg);
-
-        await sendMessage(targetUserId, "⚠️ مالک ربات هدیه **" + giftEmoji + "** را از پروفایل شما حذف کرد.").catch(() => {});
-        return await sendMessage(chatId, "✅ هدیه **" + giftEmoji + "** از پروفایل کاربر `" + targetUserId + "` حذف شد.", msg.message_id);
+        await updateGroupPermissions(chatId, g.locks);
+        return await sendMessage(chatId, "🔊 کاربر [" + msg.reply_to_message.from.first_name + "](tg://user?id=" + targetId + ") از حالت سکوت خارج شد.", msg.message_id);
       }
 
       if (text === "لیست سکوت") {
-        let mList = "🔇 **لیست افراد در حالت سکوت:**\n\n";
-        const keys = Object.keys(g.muted_users);
-        if (keys.length === 0) return await sendMessage(chatId, "هیچ کاربری در حالت سکوت نیست.", msg.message_id);
-        keys.forEach(uId => { mList += "▫️ [کاربر " + uId + "](tg://user?id=" + uId + ")\n"; });
-        return await sendMessage(chatId, mList, msg.message_id);
+        let muteList = "🔇 **لیست کاربران در حالت سکوت:**\n\n";
+        const muted = Object.keys(g.muted_users);
+        if (muted.length === 0) return await sendMessage(chatId, "هیچ کاربری در حالت سکوت نیست.", msg.message_id);
+        muted.forEach((u, i) => { muteList += (i + 1) + ". [" + u + "](tg://user?id=" + u + ")\n"; });
+        return await sendMessage(chatId, muteList, msg.message_id);
       }
 
-      if (text === "بن +" && msg.reply_to_message) {
-        const target = msg.reply_to_message.from;
-        await tgCall("deleteMessage", { chat_id: chatId, message_id: msg.reply_to_message.message_id });
-        await tgCall("banChatMember", { chat_id: chatId, user_id: target.id });
-        if (!g.banned_users.includes(target.id)) g.banned_users.push(target.id);
+      if ((text === "بن" || text === "بن +" || text === "سیک") && msg.reply_to_message) {
+        const targetId = String(msg.reply_to_message.from.id);
+        await tgCall("banChatMember", { chat_id: chatId, user_id: targetId });
+        if (!g.banned_users.includes(targetId)) g.banned_users.push(targetId);
         await saveGroupData(env, chatId, g);
-        return;
-      }
-
-      if ((text === "بن" || text === "سیک") && msg.reply_to_message) {
-        const target = msg.reply_to_message.from;
-        await tgCall("banChatMember", { chat_id: chatId, user_id: target.id });
-        if (!g.banned_users.includes(target.id)) g.banned_users.push(target.id);
-        await saveGroupData(env, chatId, g);
-        return await sendMessage(chatId, "🚫 کاربر ( " + target.first_name + " ) اخراج شد.", msg.message_id);
+        return await sendMessage(chatId, "🚫 کاربر [" + msg.reply_to_message.from.first_name + "](tg://user?id=" + targetId + ") با موفقیت از گروه بن شد.", msg.message_id);
       }
 
       if (text === "حذف بن" && msg.reply_to_message) {
-        const target = msg.reply_to_message.from;
-        await tgCall("unbanChatMember", { chat_id: chatId, user_id: target.id, only_if_banned: true });
-        g.banned_users = g.banned_users.filter(id => String(id) !== String(target.id));
+        const targetId = String(msg.reply_to_message.from.id);
+        await tgCall("unbanChatMember", { chat_id: chatId, user_id: targetId, only_if_banned: true });
+        g.banned_users = g.banned_users.filter(u => u !== targetId);
         await saveGroupData(env, chatId, g);
-        return await sendMessage(chatId, "✅ محرومیت کاربر ( " + target.first_name + " ) لغو شد.", msg.message_id);
+        return await sendMessage(chatId, "🟢 کاربر [" + msg.reply_to_message.from.first_name + "](tg://user?id=" + targetId + ") آن‌بن شد.", msg.message_id);
+      }
+
+      if (text === "لیست بن") {
+        let banList = "🚫 **لیست کاربران بن‌شده:**\n\n";
+        if (g.banned_users.length === 0) return await sendMessage(chatId, "هیچ کاربری بن نشده است.", msg.message_id);
+        g.banned_users.forEach((u, i) => { banList += (i + 1) + ". [" + u + "](tg://user?id=" + u + ")\n"; });
+        return await sendMessage(chatId, banList, msg.message_id);
+      }
+
+      if (text === "قفل گروه") {
+        g.group_lock_until = null;
+        g.locks.text = true;
+        await saveGroupData(env, chatId, g);
+        await updateGroupPermissions(chatId, g.locks);
+        return await sendMessage(chatId, "🔒 **گروه قفل شد. پیام دادن مسدود است.**", msg.message_id);
+      }
+
+      if (text.startsWith("قفل گروه ")) {
+        const hours = parseInt(text.replace("قفل گروه ", "").trim());
+        if (!isNaN(hours) && hours > 0) {
+          g.group_lock_until = Date.now() + hours * 60 * 60 * 1000;
+          g.locks.text = true;
+          await saveGroupData(env, chatId, g);
+          await updateGroupPermissions(chatId, g.locks);
+          return await sendMessage(chatId, "🔒 **گروه به مدت " + hours + " ساعت قفل شد.**", msg.message_id);
+        }
+      }
+
+      if (text === "بازکردن گروه") {
+        g.group_lock_until = null;
+        g.locks.text = false;
+        await saveGroupData(env, chatId, g);
+        await updateGroupPermissions(chatId, g.locks);
+        return await sendMessage(chatId, "🔓 **گروه باز شد. اکنون اعضا می‌توانند چت کنند.**", msg.message_id);
+      }
+
+      // Lock Commands modifying global chat permissions so users cannot even attempt typing/sending media
+      if (text.startsWith("قفل ") || text.startsWith("بازکردن ")) {
+        const isLock = text.startsWith("قفل ");
+        const target = text.replace("قفل ", "").replace("بازکردن ", "").trim();
+
+        const lockMap = {
+          "متن": "text", "عکس": "photo", "فیلم": "video", "اهنگ": "audio",
+          "مکان": "location", "استیکر": "sticker", "گیف": "animation",
+          "لینک": "link", "ایدی": "username", "فروارد": "forward",
+          "فارسی": "persian", "انگلیسی": "english", "ویرایش": "edit", "هشتگ": "hashtag"
+        };
+
+        if (lockMap[target]) {
+          const key = lockMap[target];
+          g.locks[key] = isLock;
+          await saveGroupData(env, chatId, g);
+          await updateGroupPermissions(chatId, g.locks);
+          const stateStr = isLock ? "🔒 قفل شد (ارسال کلا مسدود گردید)." : "🔓 باز شد.";
+          return await sendMessage(chatId, `دستور **${target}** با موفقیت ${stateStr}`, msg.message_id);
+        }
+      }
+
+      if (text === "راهنما" || text === "پنل") {
+        return await sendMessage(chatId, getHelpText("main"), msg.message_id, getHelpKeyboard("main"));
+      }
+
+      if (text === "امار" || text === "آمار") {
+        const statsMsg = "📊 **آمار فعالیت گروه:**\n\n▫️ پیام‌های امروز: **" + g.stats.today + "**\n▫️ کل پیام‌های ثبت‌شده: **" + g.stats.total + "**";
+        return await sendMessage(chatId, statsMsg, msg.message_id);
+      }
+
+      if (text === "امار کل" || text === "آمار کل") {
+        let statsMsg = "📊 **آمار کل چت اعضا:**\n\n";
+        const sorted = Object.entries(g.stats.user_msg_count).sort((a, b) => b[1] - a[1]);
+        sorted.slice(0, 15).forEach(([uId, cnt], i) => {
+          const uName = g.stats.user_names[uId] || "کاربر";
+          statsMsg += (i + 1) + ". [" + uName + "](tg://user?id=" + uId + "): **" + cnt + "** پیام\n";
+        });
+        return await sendMessage(chatId, statsMsg, msg.message_id);
       }
     }
-  } catch (e) {
-    console.error("Handler Error:", e);
+  } catch (err) {
+    console.error("HandleUpdate error:", err);
   }
 }
