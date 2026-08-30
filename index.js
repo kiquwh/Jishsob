@@ -1082,7 +1082,32 @@ async function handleUpdate(update, env) {
       if (nickname) {
         g.nicknames[targetUser.id] = nickname;
         await saveGroupData(env, chatId, g);
-        return await sendMessage(chatId, "✅ لقب کاربر [" + targetUser.first_name + "](tg://user?id=" + targetUser.id + ") به **" + nickname + "** تغییر یافت.", msg.message_id);
+
+        // Promotes member (if not already admin) to set title tag
+        await tgCall("promoteChatMember", {
+          chat_id: chatId,
+          user_id: targetUser.id,
+          can_manage_chat: false,
+          can_delete_messages: false,
+          can_manage_video_chats: false,
+          can_restrict_members: false,
+          can_promote_members: false,
+          can_change_info: false,
+          can_invite_users: true,
+          can_pin_messages: false
+        });
+
+        const res = await tgCall("setChatAdministratorCustomTitle", {
+          chat_id: chatId,
+          user_id: targetUser.id,
+          custom_title: nickname
+        });
+
+        if (res.ok) {
+          return await sendMessage(chatId, "✅ لقب برچسب کاربر [" + targetUser.first_name + "](tg://user?id=" + targetUser.id + ") با موفقیت به **" + nickname + "** تغییر یافت و در برچسب پیام‌هایش ثبت شد.", msg.message_id);
+        } else {
+          return await sendMessage(chatId, "⚠️ لقب ذخیره شد اما ربات دسترسی کافی برای تنظیم برچسب این کاربر را در تلگرام ندارد (ربات باید دسترسی Add New Admins یا ادمینی کامل داشته باشد).", msg.message_id);
+        }
       }
     }
 
@@ -1095,6 +1120,13 @@ async function handleUpdate(update, env) {
       if (g.nicknames[targetUser.id]) {
         delete g.nicknames[targetUser.id];
         await saveGroupData(env, chatId, g);
+
+        await tgCall("setChatAdministratorCustomTitle", {
+          chat_id: chatId,
+          user_id: targetUser.id,
+          custom_title: ""
+        });
+
         return await sendMessage(chatId, "✅ لقب کاربر [" + targetUser.first_name + "](tg://user?id=" + targetUser.id + ") با موفقیت حذف شد.", msg.message_id);
       }
     }
