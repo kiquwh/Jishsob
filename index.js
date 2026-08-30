@@ -301,14 +301,16 @@ function getHelpText(category) {
   }
 }
 
-function getPrivateKeyboard() {
+function getPrivateKeyboard(isOwnerOrAdmin = false) {
   const cleanUsername = BOT_USERNAME.replace("@", "");
-  return {
-    inline_keyboard: [
-      [{ text: "➕ افزودن به گپ", url: `https://t.me/${cleanUsername}?startgroup=true` }],
-      [{ text: "🎧 پشتیبانی", callback_data: "req_support" }]
-    ]
-  };
+  const keyboard = [
+    [{ text: "➕ افزودن به گپ", url: `https://t.me/${cleanUsername}?startgroup=true` }],
+    [{ text: "🎧 پشتیبانی", callback_data: "req_support" }]
+  ];
+  if (isOwnerOrAdmin) {
+    keyboard.unshift([{ text: "⚙️ پنل مدیریت ربات", callback_data: "admin_panel" }]);
+  }
+  return { inline_keyboard: keyboard };
 }
 
 function getMultiChannelKeyboard(channels) {
@@ -328,7 +330,8 @@ function getAdminPanelKeyboard(isOff, userId) {
     [{ text: isOff ? "🟢 روشن کردن ربات" : "🔴 خاموش کردن ربات", callback_data: "toggle_bot_state" }],
     [{ text: "➕ افزودن مدیر", callback_data: "add_admin_prompt" }, { text: "➖ حذف مدیر", callback_data: "rem_admin_prompt" }],
     [{ text: "👥 لیست کاربران", callback_data: "list_users" }, { text: "🚫 بن کاربر", callback_data: "ban_user_prompt" }],
-    [{ text: "🟢 آن‌بن کاربر", callback_data: "unban_user_prompt" }, { text: "📢 پیام همگانی", callback_data: "broadcast_prompt" }]
+    [{ text: "🟢 آن‌بن کاربر", callback_data: "unban_user_prompt" }, { text: "📢 پیام همگانی (پیوی)", callback_data: "broadcast_prompt" }],
+    [{ text: "📢 پیام همگانی به گروه‌ها", callback_data: "broadcast_groups_prompt" }]
   ];
 
   if (userId === OWNER_ID) {
@@ -440,7 +443,7 @@ async function handleUpdate(update, env) {
 
       if (data === "pv_main_menu") {
         const msgText = "✨ **ربات فعال است.**\n\nآن را در گروه اضافه کرده و ادمین کنید.";
-        await editMessageText(cb.message.chat.id, cb.message.message_id, msgText);
+        await editMessageText(cb.message.chat.id, cb.message.message_id, msgText, getPrivateKeyboard(isOwnerOrAdmin));
         return await answerCallbackQuery(cb.id);
       }
 
@@ -545,7 +548,14 @@ async function handleUpdate(update, env) {
       if (data === "broadcast_prompt") {
         if (!isOwnerOrAdmin) return await answerCallbackQuery(cb.id, "عدم دسترسی", true);
         if (env && env.BOT_KV) await env.BOT_KV.put("await_action:" + userId, "await_broadcast");
-        await editMessageText(cb.message.chat.id, cb.message.message_id, "📢 **متن یا پیام همگانی خود را بفرستید:**");
+        await editMessageText(cb.message.chat.id, cb.message.message_id, "📢 **متن یا پیام همگانی خود برای کاربران (پیوی) را بفرستید:**");
+        return await answerCallbackQuery(cb.id);
+      }
+
+      if (data === "broadcast_groups_prompt") {
+        if (!isOwnerOrAdmin) return await answerCallbackQuery(cb.id, "عدم دسترسی", true);
+        if (env && env.BOT_KV) await env.BOT_KV.put("await_action:" + userId, "await_broadcast_groups");
+        await editMessageText(cb.message.chat.id, cb.message.message_id, "📢 **متن یا پیام همگانی خود را برای تمامی گروه‌ها بفرستید:**");
         return await answerCallbackQuery(cb.id);
       }
 
@@ -632,21 +642,21 @@ async function handleUpdate(update, env) {
             }
           }
 
-          return await sendMessage(chatId, "🔴 **ربات خاموش شد و پیام اطلاعیه به تمام کاربران ارسال گردید.**", null, getPrivateKeyboard());
+          return await sendMessage(chatId, "🔴 **ربات خاموش شد و پیام اطلاعیه به تمام کاربران ارسال گردید.**", null, getPrivateKeyboard(isOwnerOrAdmin));
         }
 
         if (currentAction === "await_add_admin") {
           if (!cfg.bot_admins) cfg.bot_admins = [OWNER_ID];
           if (!cfg.bot_admins.includes(text)) cfg.bot_admins.push(text);
           await saveGlobalConfig(env, cfg);
-          return await sendMessage(chatId, "✅ کاربر `" + text + "` با موفقیت به ادمین‌های ربات اضافه شد.", null, getPrivateKeyboard());
+          return await sendMessage(chatId, "✅ کاربر `" + text + "` با موفقیت به ادمین‌های ربات اضافه شد.", null, getPrivateKeyboard(isOwnerOrAdmin));
         }
 
         if (currentAction === "await_rem_admin") {
-          if (text === OWNER_ID) return await sendMessage(chatId, "❌ امکان حذف مالک اصلی ربات وجود ندارد.", null, getPrivateKeyboard());
+          if (text === OWNER_ID) return await sendMessage(chatId, "❌ امکان حذف مالک اصلی ربات وجود ندارد.", null, getPrivateKeyboard(isOwnerOrAdmin));
           cfg.bot_admins = (cfg.bot_admins || []).filter(a => String(a) !== text);
           await saveGlobalConfig(env, cfg);
-          return await sendMessage(chatId, "✅ کاربر `" + text + "` از لیست مدیران ربات حذف شد.", null, getPrivateKeyboard());
+          return await sendMessage(chatId, "✅ کاربر `" + text + "` از لیست مدیران ربات حذف شد.", null, getPrivateKeyboard(isOwnerOrAdmin));
         }
 
         if (currentAction === "await_ban_user") {
@@ -654,14 +664,14 @@ async function handleUpdate(update, env) {
           if (!cfg.banned_pv.includes(text)) cfg.banned_pv.push(text);
           await saveGlobalConfig(env, cfg);
           await sendMessage(text, "🔴 **شما توسط مدیریت از ربات بن شدید.**").catch(() => {});
-          return await sendMessage(chatId, "✅ کاربر `" + text + "` بن شد.", null, getPrivateKeyboard());
+          return await sendMessage(chatId, "✅ کاربر `" + text + "` بن شد.", null, getPrivateKeyboard(isOwnerOrAdmin));
         }
 
         if (currentAction === "await_unban_user") {
           cfg.banned_pv = (cfg.banned_pv || []).filter(u => String(u) !== text);
           await saveGlobalConfig(env, cfg);
           await sendMessage(text, "🟢 **حساب شما در ربات آن‌بن شد.**").catch(() => {});
-          return await sendMessage(chatId, "✅ کاربر `" + text + "` آن‌بن شد.", null, getPrivateKeyboard());
+          return await sendMessage(chatId, "✅ کاربر `" + text + "` آن‌بن شد.", null, getPrivateKeyboard(isOwnerOrAdmin));
         }
 
         if (currentAction === "await_broadcast") {
@@ -672,7 +682,19 @@ async function handleUpdate(update, env) {
             const r = await sendMessage(u, broadMsg);
             if (r.ok) count++;
           }
-          return await sendMessage(chatId, "✅ پیام همگانی با موفقیت برای **" + count + "** کاربر ارسال شد.", null, getPrivateKeyboard());
+          return await sendMessage(chatId, "✅ پیام همگانی با موفقیت برای **" + count + "** کاربر ارسال شد.", null, getPrivateKeyboard(isOwnerOrAdmin));
+        }
+
+        if (currentAction === "await_broadcast_groups") {
+          const groupKeys = Object.keys(dbData.groups || {});
+          let count = 0;
+          const broadMsg = `👑 **پیام همگانی مدیریت:**\n\n${text}\n\n— مدیریت ${BOT_NAME}`;
+          for (const key of groupKeys) {
+            const groupChatId = key.replace("group:", "");
+            const r = await sendMessage(groupChatId, broadMsg);
+            if (r.ok) count++;
+          }
+          return await sendMessage(chatId, "✅ پیام همگانی با موفقیت برای **" + count + "** گروه ارسال شد.", null, getPrivateKeyboard(isOwnerOrAdmin));
         }
 
         if (currentAction.startsWith("await_support_reply:")) {
@@ -682,9 +704,9 @@ async function handleUpdate(update, env) {
           };
           const sentRes = await sendMessage(targetUserId, `💬 **پاسخ پشتیبانی (مالک):**\n\n${text}`, null, replyMarkup);
           if (sentRes.ok) {
-            return await sendMessage(chatId, `✅ پاسخ شما با موفقیت برای کاربر \`${targetUserId}\` ارسال شد.`, null, getPrivateKeyboard());
+            return await sendMessage(chatId, `✅ پاسخ شما با موفقیت برای کاربر \`${targetUserId}\` ارسال شد.`, null, getPrivateKeyboard(isOwnerOrAdmin));
           } else {
-            return await sendMessage(chatId, `❌ خطا در ارسال پاسخ به کاربر.`, null, getPrivateKeyboard());
+            return await sendMessage(chatId, `❌ خطا در ارسال پاسخ به کاربر.`, null, getPrivateKeyboard(isOwnerOrAdmin));
           }
         }
       }
@@ -697,9 +719,9 @@ async function handleUpdate(update, env) {
         const supportForwardText = `📩 **پیام جدید از کاربر:**\n▫️ آیدی عددی: \`${userId}\`\n▫️ لینک پروفایل: [کاربر](tg://user?id=${userId})\n\n**متن پیام:**\n${text}`;
         const ownerRes = await sendMessage(OWNER_ID, supportForwardText, null, replyMarkup);
         if (ownerRes.ok) {
-          return await sendMessage(chatId, "✅ پیام شما با موفقیت برای مالک ربات ارسال شد. به زودی پاسخ داده خواهد شد.", null, getPrivateKeyboard());
+          return await sendMessage(chatId, "✅ پیام شما با موفقیت برای مالک ربات ارسال شد. به زودی پاسخ داده خواهد شد.", null, getPrivateKeyboard(isOwnerOrAdmin));
         } else {
-          return await sendMessage(chatId, "❌ خطا در ارسال پیام به پشتیبانی.", null, getPrivateKeyboard());
+          return await sendMessage(chatId, "❌ خطا در ارسال پیام به پشتیبانی.", null, getPrivateKeyboard(isOwnerOrAdmin));
         }
       }
 
@@ -740,7 +762,7 @@ async function handleUpdate(update, env) {
         "➕ برای اضافه کردن ربات به گروه، روی افزودن به گپ بزن.\n" +
         "🔗 آیدی ربات: " + BOT_USERNAME;
         
-        return await sendMessage(chatId, startMsg, msg.message_id, getPrivateKeyboard());
+        return await sendMessage(chatId, startMsg, msg.message_id, getPrivateKeyboard(isOwnerOrAdmin));
       }
 
       return;
@@ -1021,6 +1043,8 @@ async function handleUpdate(update, env) {
             reply_to_message_id: msg.reply_to_message.message_id
           });
           return;
+        } else {
+          return await sendMessage(chatId, "❌ خطا در دریافت لینک استیکر.", msg.message_id);
         }
       } catch (e) {
         return await sendMessage(chatId, "❌ خطا در تبدیل استیکر به عکس.", msg.message_id);
