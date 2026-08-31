@@ -14,7 +14,7 @@ const DEFAULT_CHANNEL = "";
 
 const PORT = process.env.PORT || 3000;
 
-// Simple JSON Database file emulation for Cloudflare KV
+// Simple JSON Database file emulation for Volume storage
 const DB_FILE = './database.json';
 let dbData = { global_config: null, groups: {}, secrets: {} };
 
@@ -180,6 +180,7 @@ function createNewGroupData(adderId = null) {
     locks: { text: false, photo: false, video: false, audio: false, location: false, sticker: false, animation: false, link: false, username: false, forward: false, persian: false, english: false, edit: false, hashtag: false },
     saved_asl: null,
     saved_link: null,
+    saved_uids: {},
     group_lock_until: null,
     max_warns: 3,
     warn_action: "mute",
@@ -209,6 +210,7 @@ async function getGroupData(env, chatId) {
         if (!data.user_added_ids) data.user_added_ids = {};
         if (!data.user_recent_msgs) data.user_recent_msgs = {};
         if (!data.filtered_words) data.filtered_words = {};
+        if (!data.saved_uids) data.saved_uids = {};
         if (!data.forced_channels) data.forced_channels = DEFAULT_CHANNEL ? [DEFAULT_CHANNEL] : [];
         if (!data.spam_action) data.spam_action = { type: "mute", minutes: 5 };
         if (!data.stats) data.stats = { total: 0, today: 0, date: new Date().toISOString().split('T')[0], user_msg_count: {}, user_names: {} };
@@ -294,7 +296,7 @@ function getHelpText(category) {
   switch (category) {
     case "locks": return "🔒 **دستورات قفل و اسپم:**\n\n▫️ `قفل متن` | `قفل عکس` | `قفل گیف` | `قفل استیکر` | `قفل مکان`\n▫️ `قفل فیلم` | `قفل اهنگ` | `قفل لینک` | `قفل ایدی`\n▫️ `قفل فروارد` | `قفل فارسی` | `قفل انگلیسی` | `قفل ویرایش` | `قفل هشتگ`\n▫️ `قفل گروه` | `قفل گروه [ساعت]` | `بازکردن گروه`\n▫️ `تنظیم اسپم [تعداد]` | `تنظیم اسپم غیرفعال`\n▫️ `تنظیم مجازات اسپم [سکوت/بن/اخطار] [دقیقه]`";
     case "punish": return "⚠️ **دستورات اخطار، سنجاق و مجازات:**\n\n▫️ `پین` | `انپین` | `اخطار` | `حذف اخطار`\n▫️ `تنظیم حداکثر اخطار [تعداد]`\n▫️ `تنظیم مجازات اخطار [بن/سکوت]`\n▫️ `سکوت` | `سکوت [دقیقه]` | `حذف سکوت` | `لیست سکوت`\n▫️ `بن` | `حذف بن` | `لیست بن` | `حذف پیام [تعداد]`";
-    case "tags": return "🏷 **دستورات لقب، آمار و تگ:**\n\n▫️ `تنظیم لقب [اسم]` | `حذف لقب` | `لقب`\n▫️ `تگ کل` | `تگ مدیران` | `تگ کاربران` | `تگ [متن]`\n▫️ `امار کل` | `امار امروز` | `امار` | `پنل کاربر`";
+    case "tags": return "🏷 **دستورات لقب، آمار و تگ:**\n\n▫️ `تنظیم لقب [اسم]` | `حذف لقب` | `لقب`\n▫️ `ثبت یوایدی [متن]` (ریپلی روی کاربر)\n▫️ `تگ کل` | `تگ مدیران` | `تگ کاربران` | `تگ [متن]`\n▫️ `امار کل` | `امار امروز` | `امار` | `پنل کاربر`";
     case "settings": return "⚙️ **تنظیمات مدیریت و دعوت:**\n\n▫️ `تنظیم قوانین [متن]` | `قوانین`\n▫️ `اد اجباری [تعداد]` | `اد اجباری غیرفعال`\n▫️ `تنظیم عضویت اجباری [يوزر_كانال]`\n▫️ `حذف عضویت اجباری [يوزر_كانال]` | `لیست عضویت اجباری`\n▫️ `تنظیم خوشامد [متن]`\n▫️ `تنظیم مدیر` | `حذف مدیر` | `لیست مدیرها`\n▫️ `ثبت اصل` | `حذف اصل` | `ثبت لینک اینجا` | `حذف لینک اینجا` | `لینک ها`";
     case "fun": return "🎲 **دستورات سرگرمی و فیلترینگ:**\n\n▫️ `تاریخ` | `فال` | `تاس` | `سکه` | `شانس` | `فونت [متن]`\n▫️ `مخفی [متن]` (ارسال و حذف آنی پیام)\n▫️ `پیام [username@] [متن]` (پیام مخفی به کاربر)\n▫️ `[عدد 1] [عملگر +-*/] [عدد 2]` (ماشین حساب)\n▫️ `فیلتر [کلمه]` | `حذف فیلتر [کلمه]` | `لیست فیلتر`";
     default: return "📚 **به پنل راهنمای مدیریت گروه خوش آمدید.**\n\nیک بخش را انتخاب کنید:";
@@ -921,6 +923,39 @@ async function handleUpdate(update, env) {
       }
     }
 
+    // دستور ثبت یوایدی روی کاربر (فقط مدیران)
+    if (userIsAdmin && text.startsWith("ثبت یوایدی")) {
+      if (msg.reply_to_message && msg.reply_to_message.from) {
+        const targetUser = msg.reply_to_message.from;
+        const uidText = text.replace("ثبت یوایدی", "").trim() || String(targetUser.id);
+        
+        if (!g.saved_uids) g.saved_uids = {};
+        g.saved_uids[targetUser.id] = {
+          name: targetUser.first_name || "کاربر",
+          val: uidText
+        };
+        await saveGroupData(env, chatId, g);
+        return await sendMessage(chatId, "✅ یوایدی کاربر [" + targetUser.first_name + "](tg://user?id=" + targetUser.id + ") با مقدار `" + uidText + "` ثبت شد.", msg.message_id);
+      } else {
+        return await sendMessage(chatId, "⚠️ برای ثبت یوایدی باید دستور را روی پیام کاربر مورد نظر ریپلی کنید.", msg.message_id);
+      }
+    }
+
+    // عمومی: مشاهده لیست یوایدی‌ها (برای همه اعضا)
+    if (text === "یوایدی" || text === "یو ایدیا" || text === "لیست یوایدی") {
+      const uids = g.saved_uids || {};
+      const keys = Object.keys(uids);
+      if (keys.length === 0) {
+        return await sendMessage(chatId, "🆔 هیچ یوایدی تا کنون ثبت نشده است.", msg.message_id);
+      }
+      let uidMsg = "🆔 **لیست یوایدی‌های ثبت‌شده گروه:**\n\n";
+      keys.forEach((k, i) => {
+        const uItem = uids[k];
+        uidMsg += (i + 1) + ". [" + uItem.name + "](tg://user?id=" + k + ") 👈 `" + uItem.val + "`\n";
+      });
+      return await sendMessage(chatId, uidMsg, msg.message_id);
+    }
+
     if (text === "پنل کاربر" || text === "اطلاعات کاربر") {
       let targetUser = msg.from;
       if (msg.reply_to_message && msg.reply_to_message.from) {
@@ -932,11 +967,13 @@ async function handleUpdate(update, env) {
       const username = targetUser.username ? "@" + targetUser.username : "ندارد";
       const userWarns = g.warns[targetId] || 0;
       const isMuted = g.muted_users[targetId] ? "بله" : "خیر";
+      const customUid = (g.saved_uids && g.saved_uids[targetId]) ? g.saved_uids[targetId].val : "ثبت نشده";
 
       const panelText = `👤 **پنل اطلاعات کاربر:**\n\n` +
         `▫️ **نام:** ${name}\n` +
         `▫️ **یوزرنیم:** ${username}\n` +
         `▫️ **آیدی عددی:** \`${targetId}\`\n` +
+        `▫️ **یوایدی ثبت‌شده:** \`${customUid}\`\n` +
         `▫️ **تعداد اخطارها:** ${userWarns}/${g.max_warns || 3}\n` +
         `▫️ **وضعیت سکوت:** ${isMuted}`;
 
@@ -1020,7 +1057,8 @@ async function handleUpdate(update, env) {
     if (text.startsWith("مخفی ")) {
       const secretMsg = text.replace("مخفی ", "").trim();
       await tgCall("deleteMessage", { chat_id: chatId, message_id: msg.message_id });
-      return await sendMessage(chatId, "🤫 **پیام مخفی ارسالی:**\n\n" + secretMsg);
+      const sentSecret = await sendMessage(chatId, "🤫 **پیام مخفی:**\n\n||" + secretMsg + "||");
+      return sentSecret;
     }
 
     if (text.startsWith("پیام @")) {
@@ -1083,7 +1121,6 @@ async function handleUpdate(update, env) {
         g.nicknames[targetUser.id] = nickname;
         await saveGroupData(env, chatId, g);
 
-        // Promotes member (if not already admin) to set title tag
         await tgCall("promoteChatMember", {
           chat_id: chatId,
           user_id: targetUser.id,
@@ -1608,8 +1645,7 @@ async function handleUpdate(update, env) {
       }
     }
 
-    if (text === "راهنما" || text === "/help") {
-      if (!userIsAdmin) return;
+    if (userIsAdmin && (text === "راهنما" || text === "/help")) {
       const helpMsg = getHelpText("main");
       return await sendMessage(chatId, helpMsg, msg.message_id, getHelpKeyboard("main"));
     }
