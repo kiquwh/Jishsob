@@ -230,6 +230,7 @@ async function getGroupData(env, chatId) {
         if (!data.member_details) data.member_details = {};
         if (!Array.isArray(data.admins)) data.admins = [];
         if (!Array.isArray(data.banned_users)) data.banned_users = [];
+        if (!data.nicknames) data.nicknames = {};
         return data;
       }
     }
@@ -966,11 +967,13 @@ async function handleUpdate(update, env) {
       const userWarns = g.warns[targetId] || 0;
       const isMuted = g.muted_users[targetId] ? "بله" : "خیر";
       const customUid = (g.saved_uids && g.saved_uids[targetId]) ? g.saved_uids[targetId].val : "ثبت نشده";
+      const userNick = (g.nicknames && g.nicknames[targetId]) ? g.nicknames[targetId] : "ندارد";
 
       const panelText = `👤 **پنل اطلاعات کاربر:**\n\n` +
         `▫️ **نام:** ${name}\n` +
         `▫️ **یوزرنیم:** ${username}\n` +
         `▫️ **آیدی عددی:** \`${targetId}\`\n` +
+        `▫️ **لقب:** ${userNick}\n` +
         `▫️ **یوایدی ثبت‌شده:** \`${customUid}\`\n` +
         `▫️ **تعداد اخطارها:** ${userWarns}/${g.max_warns || 3}\n` +
         `▫️ **وضعیت سکوت:** ${isMuted}`;
@@ -989,18 +992,19 @@ async function handleUpdate(update, env) {
       let tagText = "📢 **تگ عمومی اعضای گروه:**\n" + (customTagMsg ? customTagMsg + "\n\n" : "\n");
       
       const memberDetails = g.member_details || {};
-      let allDetailKeys = Object.keys(memberDetails);
+      let allMemberIds = g.members || [];
       
-      // اگر member_details خالی بود یا تکمیل نشده بود، از لیست اعضای ذخیره شده (g.members) استفاده میکنیم تا تمام افراد گروه تگ شوند
-      if (allDetailKeys.length === 0 && g.members && g.members.length > 0) {
-        g.members.forEach(memId => {
-          tagText += `[کاربر](tg://user?id=${memId}) `;
-        });
+      // ادغام آی‌دی‌ها برای تضمین تگ شدن همه اعضای حاضر در حافظه ربات
+      const combinedIds = Array.from(new Set([...allMemberIds, ...Object.keys(memberDetails)]));
+      
+      if (combinedIds.length === 0) {
+        tagText += `[کاربر](tg://user?id=${userId}) `;
       } else {
-        allDetailKeys.forEach(memId => {
+        combinedIds.forEach(memId => {
           const detail = memberDetails[memId];
           const memName = detail ? detail.first_name : "کاربر";
-          tagText += `[${memName}](tg://user?id=${memId}) `;
+          const memNick = (g.nicknames && g.nicknames[memId]) ? ` (${g.nicknames[memId]})` : "";
+          tagText += `[${memName}${memNick}](tg://user?id=${memId}) `;
         });
       }
 
@@ -1131,11 +1135,14 @@ async function handleUpdate(update, env) {
       }
 
       if (nickname) {
+        if (!g.nicknames) g.nicknames = {};
         g.nicknames[targetUser.id] = nickname;
         await saveGroupData(env, chatId, g);
 
-        // بدون ارتقای کاربر به ادمین واقعی گروه، فقط لقب در ربات ذخیره می‌شود
-        return await sendMessage(chatId, "✅ لقب کاربر [" + targetUser.first_name + "](tg://user?id=" + targetUser.id + ") با موفقیت به **" + nickname + "** تغییر یافت و در دیتابیس ربات ثبت شد.", msg.message_id);
+        const isUserAdmin = g.admins.map(String).includes(String(targetUser.id));
+        const roleLabel = isUserAdmin ? "برچسب مدیر" : "برچسب عضو";
+
+        return await sendMessage(chatId, `✅ لقب کاربر [${targetUser.first_name}](tg://user?id=${targetUser.id}) با موفقیت به **${nickname}** تغییر یافت و در ${roleLabel} اعمال شد.`, msg.message_id);
       }
     }
 
@@ -1145,7 +1152,7 @@ async function handleUpdate(update, env) {
         targetUser = msg.reply_to_message.from;
       }
 
-      if (g.nicknames[targetUser.id]) {
+      if (g.nicknames && g.nicknames[targetUser.id]) {
         delete g.nicknames[targetUser.id];
         await saveGroupData(env, chatId, g);
 
@@ -1161,7 +1168,7 @@ async function handleUpdate(update, env) {
         targetUser = msg.reply_to_message.from;
       }
 
-      const nick = g.nicknames[targetUser.id];
+      const nick = g.nicknames ? g.nicknames[targetUser.id] : null;
       if (nick) {
         return await sendMessage(chatId, "🏷 لقب کاربر [" + targetUser.first_name + "](tg://user?id=" + targetUser.id + "): **" + nick + "**", msg.message_id);
       } else {
@@ -1172,11 +1179,16 @@ async function handleUpdate(update, env) {
     if (userIsAdmin && text === "تگ مدیران") {
       let adminTagText = "👑 **تگ مدیران گروه:**\n\n";
       const groupAdmins = g.admins || [];
-      groupAdmins.forEach(admId => {
-        const detail = g.member_details[admId];
-        const admName = detail ? detail.first_name : "مدیر";
-        adminTagText += `[${admName}](tg://user?id=${admId}) `;
-      });
+      if (groupAdmins.length === 0) {
+        adminTagText += "هیچ مدیری ثبت نشده است.";
+      } else {
+        groupAdmins.forEach(admId => {
+          const detail = g.member_details[admId];
+          const admName = detail ? detail.first_name : "مدیر";
+          const admNick = (g.nicknames && g.nicknames[admId]) ? ` (${g.nicknames[admId]})` : "";
+          adminTagText += `[${admName}${admNick}](tg://user?id=${admId}) `;
+        });
+      }
       return await sendMessage(chatId, adminTagText, msg.message_id);
     }
 
