@@ -989,13 +989,20 @@ async function handleUpdate(update, env) {
       let tagText = "📢 **تگ عمومی اعضای گروه:**\n" + (customTagMsg ? customTagMsg + "\n\n" : "\n");
       
       const memberDetails = g.member_details || {};
-      const allDetailKeys = Object.keys(memberDetails);
+      let allDetailKeys = Object.keys(memberDetails);
       
-      allDetailKeys.forEach(memId => {
-        const detail = memberDetails[memId];
-        const memName = detail ? detail.first_name : "کاربر";
-        tagText += `[${memName}](tg://user?id=${memId}) `;
-      });
+      // اگر member_details خالی بود یا تکمیل نشده بود، از لیست اعضای ذخیره شده (g.members) استفاده میکنیم تا تمام افراد گروه تگ شوند
+      if (allDetailKeys.length === 0 && g.members && g.members.length > 0) {
+        g.members.forEach(memId => {
+          tagText += `[کاربر](tg://user?id=${memId}) `;
+        });
+      } else {
+        allDetailKeys.forEach(memId => {
+          const detail = memberDetails[memId];
+          const memName = detail ? detail.first_name : "کاربر";
+          tagText += `[${memName}](tg://user?id=${memId}) `;
+        });
+      }
 
       return await sendMessage(chatId, tagText, msg.message_id);
     }
@@ -1127,30 +1134,8 @@ async function handleUpdate(update, env) {
         g.nicknames[targetUser.id] = nickname;
         await saveGroupData(env, chatId, g);
 
-        await tgCall("promoteChatMember", {
-          chat_id: chatId,
-          user_id: targetUser.id,
-          can_manage_chat: false,
-          can_delete_messages: false,
-          can_manage_video_chats: false,
-          can_restrict_members: false,
-          can_promote_members: false,
-          can_change_info: false,
-          can_invite_users: true,
-          can_pin_messages: false
-        });
-
-        const res = await tgCall("setChatAdministratorCustomTitle", {
-          chat_id: chatId,
-          user_id: targetUser.id,
-          custom_title: nickname
-        });
-
-        if (res.ok) {
-          return await sendMessage(chatId, "✅ لقب برچسب کاربر [" + targetUser.first_name + "](tg://user?id=" + targetUser.id + ") با موفقیت به **" + nickname + "** تغییر یافت و در برچسب پیام‌هایش ثبت شد.", msg.message_id);
-        } else {
-          return await sendMessage(chatId, "⚠️ لقب ذخیره شد اما ربات دسترسی کافی برای تنظیم برچسب این کاربر را در تلگرام ندارد (ربات باید دسترسی Add New Admins یا ادمینی کامل داشته باشد).", msg.message_id);
-        }
+        // بدون ارتقای کاربر به ادمین واقعی گروه، فقط لقب در ربات ذخیره می‌شود
+        return await sendMessage(chatId, "✅ لقب کاربر [" + targetUser.first_name + "](tg://user?id=" + targetUser.id + ") با موفقیت به **" + nickname + "** تغییر یافت و در دیتابیس ربات ثبت شد.", msg.message_id);
       }
     }
 
@@ -1164,13 +1149,9 @@ async function handleUpdate(update, env) {
         delete g.nicknames[targetUser.id];
         await saveGroupData(env, chatId, g);
 
-        await tgCall("setChatAdministratorCustomTitle", {
-          chat_id: chatId,
-          user_id: targetUser.id,
-          custom_title: ""
-        });
-
         return await sendMessage(chatId, "✅ لقب کاربر [" + targetUser.first_name + "](tg://user?id=" + targetUser.id + ") با موفقیت حذف شد.", msg.message_id);
+      } else {
+        return await sendMessage(chatId, "لقبی برای این کاربر ثبت نشده است.", msg.message_id);
       }
     }
 
