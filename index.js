@@ -923,7 +923,6 @@ async function handleUpdate(update, env) {
       }
     }
 
-    // دستور ثبت یوایدی روی کاربر (فقط مدیران)
     if (userIsAdmin && text.startsWith("ثبت یوایدی")) {
       if (msg.reply_to_message && msg.reply_to_message.from) {
         const targetUser = msg.reply_to_message.from;
@@ -941,7 +940,6 @@ async function handleUpdate(update, env) {
       }
     }
 
-    // عمومی: مشاهده لیست یوایدی‌ها (برای همه اعضا)
     if (text === "یوایدی" || text === "یو ایدیا" || text === "لیست یوایدی") {
       const uids = g.saved_uids || {};
       const keys = Object.keys(uids);
@@ -990,9 +988,11 @@ async function handleUpdate(update, env) {
 
       let tagText = "📢 **تگ عمومی اعضای گروه:**\n" + (customTagMsg ? customTagMsg + "\n\n" : "\n");
       
-      const allMembers = g.members || [];
-      allMembers.forEach(memId => {
-        const detail = g.member_details[memId];
+      const memberDetails = g.member_details || {};
+      const allDetailKeys = Object.keys(memberDetails);
+      
+      allDetailKeys.forEach(memId => {
+        const detail = memberDetails[memId];
         const memName = detail ? detail.first_name : "کاربر";
         tagText += `[${memName}](tg://user?id=${memId}) `;
       });
